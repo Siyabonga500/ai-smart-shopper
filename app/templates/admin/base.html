@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{# Shell for every admin page: a top bar with the admin sections instead of the student navigation. #}
+{% set admin_nav = [
+  ('admin.index', 'speedometer2', 'Dashboard', ['admin.index']),
+  ('admin.users', 'people', 'Users', ['admin.users', 'admin.user_detail', 'admin.user_edit']),
+  ('admin.categories', 'diagram-3', 'Categories', ['admin.categories', 'admin.category_edit']),
+  ('admin.integrations_page', 'plug', 'Integrations', ['admin.integrations_page', 'admin.api_logs']),
+  ('admin.stores', 'shop', 'Stores', ['admin.stores', 'admin.store_new', 'admin.store_edit']),
+  ('admin.audit_log', 'journal-text', 'Audit log', ['admin.audit_log']),
+] %}
+{% block body_class %}admin-body{% endblock %}
+{% block main_class %}container-xl admin-main py-4{% endblock %}
+
+{% block nav %}
+<nav class="navbar navbar-expand-lg app-topbar admin-nav" aria-label="Admin">
+  <div class="container-xl">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('admin.index') }}"><i class="bi bi-shield-lock me-2"></i>Admin</a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#admin-menu"
+            aria-controls="admin-menu" aria-expanded="false" aria-label="Show the admin menu">
+      <i class="bi bi-list text-white fs-3"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="admin-menu">
+      <ul class="navbar-nav me-auto gap-lg-1">
+        {% for endpoint, icon, label, active_on in admin_nav %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint in active_on %}active{% endif %}" href="{{ url_for(endpoint) }}"
+               {% if request.endpoint in active_on %}aria-current="page"{% endif %}><i class="bi bi-{{ icon }} me-1"></i>{{ label }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+        <a class="btn btn-sm btn-outline-light" href="{{ url_for('dashboard.index') }}"><i class="bi bi-arrow-left me-1"></i>Back to the app</a>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-light" type="submit">Log out</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}

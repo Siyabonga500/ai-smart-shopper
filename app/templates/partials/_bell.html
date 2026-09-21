@@ -1,0 +1,34 @@
+{# The bell (notifications, Step 17). Server-rendered first; static/js/notifications.js keeps it up to date. #}
+{% set b = bell() %}
+<div class="dropdown" data-bell data-endpoint="{{ url_for('notifications_api.list_notifications') }}"
+     data-read-all-endpoint="{{ url_for('notifications_api.read_all') }}">
+  <button class="icon-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+          aria-label="Notifications{% if b.unread %} ({{ b.unread }} unread){% endif %}" data-bell-button>
+    <i class="bi bi-bell"></i>
+    <span class="dot-badge" data-bell-badge aria-hidden="true" {% if not b.unread %}hidden{% endif %}>{{ '9+' if b.unread > 9 else b.unread }}</span>
+  </button>
+  <div class="dropdown-menu dropdown-menu-end bell-menu shadow p-0">
+    <div class="bell-head">
+      <h6 class="mb-0">Notifications</h6>
+      <button type="button" class="btn btn-link btn-sm p-0" data-bell-read-all {% if not b.unread %}hidden{% endif %}>Mark all as read</button>
+    </div>
+    <ul class="bell-list list-unstyled mb-0" data-bell-list>
+      {% for n in b['items'] %}
+        <li>
+          <a class="bell-item{{ '' if n.is_read else ' is-unread' }}" href="{{ n.url or '#' }}" data-notification-id="{{ n.id }}"
+             data-read="{{ 'true' if n.is_read else 'false' }}" title="{{ n.message }}">
+            <i class="bi bi-{{ n.icon }} bell-icon level-{{ n.level }}" aria-hidden="true"></i>
+            <span class="bell-text">
+              <span class="bell-title">{{ n.title }}</span>
+              <span class="bell-message">{{ n.message }}</span>
+              <span class="bell-ago">{{ n.ago }}{% if not n.is_read %} <span class="visually-hidden">(unread)</span>{% endif %}</span>
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="bell-empty text-muted-ink mb-0" data-bell-empty {% if b['items'] %}hidden{% endif %}>
+      <i class="bi bi-check-circle text-brand me-1"></i>You are all caught up.
+    </p>
+  </div>
+</div>

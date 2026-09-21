@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% from "partials/_form_macros.html" import control, select %}
+{% block title %}Edit {{ u.FullName }} - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.users') }}">Users</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.user_detail', user_id=u.UserId) }}">{{ u.FullName }}</a></li><li class="breadcrumb-item active" aria-current="page">Edit</li></ol></nav>
+  <h1 class="h3 mb-3">Edit {{ u.FullName }}</h1>
+  <form method="post" class="card app-card admin-form" novalidate>
+    <div class="card-body">
+      {{ form.hidden_tag() }}
+      <div class="row">
+        <div class="col-md-6">{{ control(form.FirstName, maxlength=50, autocomplete="off") }}</div>
+        <div class="col-md-6">{{ control(form.LastName, maxlength=50, autocomplete="off") }}</div>
+        <div class="col-md-6">{{ control(form.CellphoneNumber, type="tel", inputmode="numeric", maxlength=14, hint="10 digits, for example 0821234567.") }}</div>
+        <div class="col-md-6">{{ select(form.Role, hint=("You cannot change your own role." if is_self else "Admins can open this portal.")) }}</div>
+        <div class="col-12">{{ control(form.ResidentialAddress, rows=3, maxlength=300) }}</div>
+      </div>
+      <p class="text-muted-ink small mb-3">Email, ID number and password are not edited here. Use <em>Reset password</em> on the user’s page if they are locked out.</p>
+      <div class="d-flex gap-2 justify-content-end">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.user_detail', user_id=u.UserId) }}">Cancel</a>
+        <button class="btn btn-brand" type="submit">Save changes</button>
+      </div>
+    </div>
+  </form>
+{% endblock %}

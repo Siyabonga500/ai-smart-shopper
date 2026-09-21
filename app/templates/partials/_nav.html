@@ -1,0 +1,56 @@
+{# Navigation per the PDF (Dashboard view): Home, Budget, Search, List, Profile.
+   Desktop: bar at the top.  Mobile: bar fixed at the bottom, Search icon slightly larger. #}
+{% set nav_active = request.blueprint %}
+{% set nav_items = [
+  ('dashboard', 'dashboard.index', 'house-door', 'Home'),
+  ('budget',    'budget.index',    'wallet2',    'Budget'),
+  ('search',    'search.index',    'search',     'Search'),
+  ('shopping',  'shopping.index',  'card-checklist', 'List'),
+  ('profile',   'profile.index',   'person',     'Profile'),
+] %}
+
+<nav class="navbar navbar-expand-lg app-topbar d-none d-lg-flex">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('dashboard.index') }}">
+      <i class="bi bi-basket2-fill me-2"></i>{{ app_name }}
+    </a>
+    <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+      {% for key, endpoint, icon, label in nav_items %}
+        <li class="nav-item">
+          <a class="nav-link {% if nav_active == key %}active{% endif %}" href="{{ url_for(endpoint) }}">
+            <i class="bi bi-{{ icon }} me-1"></i>{{ label }}{% if key == 'shopping' and nav_list_count() %}<span class="nav-badge">{{ nav_list_count() }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+      <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'history' %}active{% endif %}" href="{{ url_for('history.index') }}">
+          <i class="bi bi-clock-history me-1"></i>History
+        </a>
+      </li>
+      <li class="nav-item ms-lg-2">
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-light" type="submit">Log out</button>
+        </form>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<nav class="app-bottom-nav d-lg-none" aria-label="Primary">
+  {% for key, endpoint, icon, label in nav_items %}
+    {% if key == 'search' %}
+      <a class="bottom-nav-item bottom-nav-search {% if nav_active == key %}active{% endif %}"
+         href="{{ url_for(endpoint) }}" aria-label="{{ label }}">
+        <span class="search-bubble"><i class="bi bi-{{ icon }}"></i></span>
+        <span class="label">{{ label }}</span>
+      </a>
+    {% else %}
+      <a class="bottom-nav-item {% if nav_active == key %}active{% endif %}" href="{{ url_for(endpoint) }}">
+        <i class="bi bi-{{ icon }}"></i>
+        {% if key == 'shopping' and nav_list_count() %}<span class="nav-badge" aria-label="{{ nav_list_count() }} items">{{ nav_list_count() }}</span>{% endif %}
+        <span class="label">{{ label }}</span>
+      </a>
+    {% endif %}
+  {% endfor %}
+</nav>

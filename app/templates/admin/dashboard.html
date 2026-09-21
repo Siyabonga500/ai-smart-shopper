@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% from "admin/_pager.html" import when %}
+{% set use_charts = true %}
+{% block title %}Admin dashboard - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">Dashboard</h1>
+    <span class="text-muted-ink small">Data source: <strong>{{ data.active_source_label }}</strong></span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    {% for label, value, icon, hint, url in [
+      ('Users', data.totals.users, 'people', data.totals.deactivated_users ~ ' deactivated · ' ~ data.totals.admins ~ ' admin' ~ ('s' if data.totals.admins != 1), url_for('admin.users')),
+      ('Active budgets', data.totals.active_budgets, 'wallet2', 'one per student at most', url_for('admin.users')),
+      ('Active lists', data.totals.active_lists, 'card-checklist', 'shopping lists in progress', url_for('admin.users')),
+      ('API calls today', data.totals.api_calls_today, 'cloud-arrow-down', 'requests to retail APIs (SAST day)', url_for('admin.api_logs')),
+    ] %}
+      <div class="col-6 col-lg-3">
+        <a class="card app-card admin-stat h-100 text-decoration-none" href="{{ url }}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="text-muted-ink small">{{ label }}</span><i class="bi bi-{{ icon }} text-brand"></i>
+            </div>
+            <div class="admin-stat-value tabular" data-stat="{{ label|lower|replace(' ', '-') }}">{{ '{:,}'.format(value).replace(',', ' ') }}</div>
+            <div class="text-muted-ink small">{{ hint }}</div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <section class="card app-card h-100" aria-labelledby="reg-title"><div class="card-body">
+        <h2 class="h6" id="reg-title">New students per week</h2>
+        <p class="text-muted-ink small mb-2">Last 8 weeks, weeks start on Monday.</p>
+        <div class="admin-chart"><canvas id="chart-registrations" role="img" aria-label="Bar chart of new students per week"></canvas></div>
+        <details class="mt-2"><summary class="small text-muted-ink">View as a table</summary>
+          <table class="table table-sm mt-2 mb-0"><thead><tr><th scope="col">Week starting</th><th scope="col" class="text-end">New students</th></tr></thead>
+            <tbody>{% for row in data.registrations %}<tr><td>{{ row.week_start|sast_date }}</td><td class="text-end tabular">{{ row.count }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </details>
+      </div></section>
+    </div>
+    <div class="col-lg-6">
+      <section class="card app-card h-100" aria-labelledby="api-title"><div class="card-body">
+        <h2 class="h6" id="api-title">API calls, last 7 days</h2>
+        <p class="text-muted-ink small mb-2">Successful and failed requests to the retail APIs. The mock source makes none.</p>
+        <div class="admin-chart"><canvas id="chart-api" role="img" aria-label="Stacked bar chart of successful and failed API calls per day"></canvas></div>
+        <details class="mt-2"><summary class="small text-muted-ink">View as a table</summary>
+          <table class="table table-sm mt-2 mb-0"><thead><tr><th scope="col">Day</th><th scope="col" class="text-end">Successful</th><th scope="col" class="text-end">Failed</th></tr></thead>
+            <tbody>{% for row in data.api_calls %}<tr><td>{{ row.date|sast_date }}</td><td class="text-end tabular">{{ row.ok }}</td><td class="text-end tabular">{{ row.error }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </details>
+      </div></section>
+    </div>
+  </div>
+  <script type="application/json" id="admin-chart-data">{{ charts|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% from "partials/_form_macros.html" import control, select %}
+{% block title %}Edit mapping - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.categories') }}">Category mappings</a></li><li class="breadcrumb-item active" aria-current="page">Edit</li></ol></nav>
+  <h1 class="h3 mb-3">Edit mapping</h1>
+  <form method="post" class="card app-card admin-form" novalidate><div class="card-body">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      <div class="col-md-7">{{ control(form.RawCategory, maxlength=150) }}</div>
+      <div class="col-md-5">{{ select(form.MappedCategory) }}</div>
+    </div>
+    <div class="d-flex gap-2 justify-content-end">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.categories') }}">Cancel</a>
+      <button class="btn btn-brand" type="submit">Save</button>
+    </div>
+  </div></form>
+{% endblock %}

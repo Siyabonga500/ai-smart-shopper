@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import control, select, password %}
+{% set use_maps = true %}
+{% block title %}Create your account - {{ app_name }}{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block main_class %}container auth-main py-4 py-lg-5{% endblock %}
+
+{% block content %}
+  <div class="auth-layout auth-layout-register">
+    <aside class="auth-intro auth-intro-compact" aria-labelledby="register-title">
+      <div class="auth-mark"><i class="bi bi-person-plus-fill" aria-hidden="true"></i></div>
+      <p class="auth-kicker">Start with the basics</p>
+      <h1 id="register-title">Your smarter shop starts here.</h1>
+      <p class="auth-lede">Create your account once, then use your budget and list whenever you shop.</p>
+      <div class="auth-step-list">
+        <div><span>1</span><p><strong>Your details</strong><br><small>Name, contact and identity</small></p></div>
+        <div><span>2</span><p><strong>Your residence</strong><br><small>Choose a DUT residence or pin your address</small></p></div>
+        <div><span>3</span><p><strong>Your account</strong><br><small>Set a password and accept the terms</small></p></div>
+      </div>
+    </aside>
+
+    <section class="card app-card auth-card auth-register-card" aria-labelledby="create-account-title">
+      <div class="card-body">
+        <div class="auth-card-heading">
+          <p class="auth-kicker mb-1">New student account</p>
+          <h2 id="create-account-title">Create your account</h2>
+          <p class="text-muted-ink mb-0">It takes a few minutes. Fields marked <span class="text-warning-strong">*</span> are required.</p>
+        </div>
+
+        <div class="auth-form-progress" role="img" aria-label="Registration form: personal details, identity, residence and password">
+          <span class="is-active">Details</span><span>Identity</span><span>Residence</span><span>Finish</span>
+        </div>
+
+        <div class="auth-register-copy visually-hidden">Set your budget, compare prices at Durban stores and shop smarter.</div>
+
+          {% if microsoft_pending %}
+            <div class="alert alert-info" role="status">
+              <i class="bi bi-microsoft me-1"></i>Signed in with Microsoft as <strong>{{ microsoft_pending.email }}</strong>.
+              Fill in the rest to finish. You will not need a password.
+            </div>
+          {% endif %}
+
+          {% if form.errors %}
+            <div class="alert alert-danger" role="alert" id="form-error-summary">
+              Please fix the highlighted fields below.
+            </div>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('auth.register') }}" id="register-form" novalidate data-microsoft="{{ 'true' if microsoft_pending else 'false' }}">
+            {{ form.csrf_token }}
+
+            <h2 class="h6 text-uppercase text-muted mb-3">About you</h2>
+            <div class="row">
+              <div class="col-md-6">{{ control(form.FirstName, autocomplete="given-name", maxlength=50) }}</div>
+              <div class="col-md-6">{{ control(form.LastName, autocomplete="family-name", maxlength=50) }}</div>
+            </div>
+            {% if microsoft_pending %}
+              {{ control(form.Email, type="email", readonly=true, autocomplete="email", maxlength=100, hint="This is your Microsoft email and is used to sign in.") }}
+            {% else %}
+              {{ control(form.Email, type="email", autocomplete="email", maxlength=100, hint="You will use this to sign in.") }}
+            {% endif %}
+            {{ control(form.CellphoneNumber, type="tel", inputmode="numeric", autocomplete="tel-national", maxlength=14,
+                       placeholder="0821234567", hint="10 digits, for example 0821234567.") }}
+
+            <h2 class="h6 text-uppercase text-muted mt-4 mb-3">Identity</h2>
+            {{ control(form.SAIdNumber, inputmode="numeric", autocomplete="off", maxlength=17, placeholder="13-digit ID number",
+                       hint="We use it to check you are registering once. We do not keep the full number.") }}
+            <div class="form-text mb-3 d-none" id="sa-id-summary" aria-live="polite"></div>
+            <div class="row">
+              <div class="col-md-6">{{ select(form.Gender, hint="Filled in from your ID number. You can change it.") }}</div>
+              <div class="col-md-6">{{ select(form.Race) }}</div>
+            </div>
+
+            <h2 class="h6 text-uppercase text-muted mt-4 mb-3">Where you live</h2>
+            <div class="mb-3">
+              <label class="form-label" for="Residence">DUT residence</label>
+              <select class="form-select{% if form.Residence.errors %} is-invalid{% endif %}" id="Residence" name="Residence">
+                <option value="">Select your residence…</option>
+                {% for area, residences in grouped_residences() %}
+                  <optgroup label="{{ area }}">
+                    {% for r in residences %}
+                      <option value="{{ r.key }}" data-address="{{ r.full_address }}" data-lat="{{ r.latitude or '' }}" data-lng="{{ r.longitude or '' }}"{% if form.Residence.data == r.key %} selected{% endif %}>
+                        {{ r.name }}{% if r.note %} ({{ r.note }}){% endif %}
+                      </option>
+                    {% endfor %}
+                  </optgroup>
+                {% endfor %}
+                <option value="other"{% if form.Residence.data == 'other' %} selected{% endif %}>Other / private accommodation</option>
+              </select>
+              <div class="invalid-feedback" data-error-for="Residence">{{ form.Residence.errors[0] if form.Residence.errors }}</div>
+              <div class="form-text">Living in a DUT residence? Pick it and the address is filled in. Otherwise choose “Other” and type or pin your address.</div>
+            </div>
+
+            {% with address_field=form.ResidentialAddress, lat_field=form.Latitude, lng_field=form.Longitude %}
+              {% include "partials/map_picker.html" %}
+            {% endwith %}
+
+            {% if not microsoft_pending %}
+              <h2 class="h6 text-uppercase text-muted mt-4 mb-3">Password</h2>
+              {{ password(form.Password, autocomplete="new-password", maxlength=72) }}
+              <ul class="list-unstyled small mb-3 password-rules" id="password-rules" aria-label="Password requirements">
+                <li data-rule="length"><i class="bi bi-circle me-1"></i>At least 8 characters</li>
+                <li data-rule="upper"><i class="bi bi-circle me-1"></i>One uppercase letter</li>
+                <li data-rule="lower"><i class="bi bi-circle me-1"></i>One lowercase letter</li>
+                <li data-rule="number"><i class="bi bi-circle me-1"></i>One number</li>
+                <li data-rule="symbol"><i class="bi bi-circle me-1"></i>One symbol (! @ # $ %)</li>
+              </ul>
+              {{ password(form.ConfirmPassword, autocomplete="new-password", maxlength=72) }}
+            {% endif %}
+
+            <div class="form-check mt-4 mb-3">
+              {{ form.AcceptTerms(class_="form-check-input" ~ (" is-invalid" if form.AcceptTerms.errors else "")) }}
+              <label class="form-check-label" for="{{ form.AcceptTerms.id }}">
+                I accept the <a href="{{ url_for('pages.terms') }}" target="_blank" rel="noopener">Terms and Privacy Policy</a>
+              </label>
+              <div class="invalid-feedback" data-error-for="AcceptTerms">{{ form.AcceptTerms.errors[0] if form.AcceptTerms.errors }}</div>
+            </div>
+
+            <button class="btn btn-brand btn-lg w-100" type="submit">Create account</button>
+          </form>
+
+          <p class="text-center mt-4 mb-0">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+        </div>
+      </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/sa-id.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/validators.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/map_picker.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/register.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import control, password %}
+{% block title %}Sign in - {{ app_name }}{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block main_class %}container auth-main py-4 py-lg-5{% endblock %}
+
+{% block content %}
+  <div class="auth-layout auth-layout-login">
+    <section class="auth-intro" aria-labelledby="welcome-title">
+      <div class="auth-mark"><i class="bi bi-basket2-fill" aria-hidden="true"></i></div>
+      <p class="auth-kicker">Student shopping, made simpler</p>
+      <h1 id="welcome-title">Spend your allowance with a plan.</h1>
+      <p class="auth-lede">Compare everyday prices in Durban, build a list, and keep your monthly budget visible before you shop.</p>
+      <ul class="auth-benefits list-unstyled">
+        <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Set a budget around the <strong>R1 750</strong> monthly student reference.</span></li>
+        <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Find lower prices across nearby stores.</span></li>
+        <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Keep your shopping list ready on your phone.</span></li>
+      </ul>
+    </section>
+
+    <section class="card app-card auth-card" aria-labelledby="signin-title">
+      <div class="card-body">
+        <div class="auth-card-heading">
+          <p class="auth-kicker mb-1">Welcome back</p>
+          <h2 id="signin-title">Sign in to {{ app_name }}</h2>
+          <p class="text-muted-ink mb-0">Use the email address you registered with.</p>
+        </div>
+
+        <form method="post" action="{{ url_for('auth.login', next=next_url) if next_url else url_for('auth.login') }}" novalidate>
+          {{ form.hidden_tag() }}
+          {{ control(form.Email, type="email", autocomplete="username", autofocus=true, maxlength=100, placeholder="you@example.com") }}
+          {{ password(form.Password, autocomplete="current-password", placeholder="Enter your password") }}
+          <div class="form-check mb-3">
+            {{ form.Remember(class_="form-check-input") }}
+            <label class="form-check-label" for="{{ form.Remember.id }}">{{ form.Remember.label.text }}</label>
+          </div>
+          <button class="btn btn-brand btn-lg w-100" type="submit">Sign in</button>
+
+          <div class="auth-divider" aria-hidden="true"><span>or continue with</span></div>
+
+          {% if microsoft_enabled %}
+            <a class="btn btn-outline-brand w-100" href="{{ url_for('auth.microsoft') }}">
+              <i class="bi bi-microsoft me-2" aria-hidden="true"></i>Sign in with Microsoft
+            </a>
+          {% else %}
+            <button class="btn btn-outline-brand w-100" type="button" disabled>
+              <i class="bi bi-microsoft me-2" aria-hidden="true"></i>Sign in with Microsoft
+            </button>
+            <p class="form-text mt-2 mb-0 text-center">Use your email and password instead.</p>
+          {% endif %}
+
+          <p class="auth-switch text-center mt-4 mb-0">New here? <a href="{{ url_for('auth.register') }}">Create your student account</a></p>
+        </form>
+      </div>
+    </section>
+  </div>
+{% endblock %}

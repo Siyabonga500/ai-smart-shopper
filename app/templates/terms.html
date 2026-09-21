@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Terms and Privacy - {{ app_name }}{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card app-card shadow-sm"><div class="card-body p-4 p-md-5">
+        <div class="alert alert-warning" role="note">
+          <strong>Draft text.</strong> This page is a working draft for development. Have it reviewed against POPIA
+          (Protection of Personal Information Act) before {{ app_name }} is opened to real students.
+        </div>
+        <h1 class="h3">Terms and Privacy Policy</h1>
+
+        <h2 class="h5 mt-4">1. What {{ app_name }} does</h2>
+        <p>{{ app_name }} helps students plan a food and essentials budget, compare shelf prices at nearby Durban stores
+          and keep a shopping list. It does not sell goods and does not pay for anything on your behalf. Prices come
+          from third-party sources, can be out of date and are shown as a guide only.</p>
+
+        <h2 class="h5 mt-4">2. Information we collect</h2>
+        <p>Your name, email address, cellphone number, residential address (and the map position we work out from it),
+          gender, race, date of birth and the last four digits of your South African ID number. If you sign in with
+          Microsoft we receive your name and email address from Microsoft. We also store the budgets, lists and
+          preferences you create.</p>
+        <p>We check your ID number to make sure it is valid and to stop the same person registering twice, then keep
+          only a one-way fingerprint of it plus the last four digits. We cannot recover the full number.</p>
+
+        <h2 class="h5 mt-4">3. Why we use it</h2>
+        <p>To run your account, sort stores by distance from where you live, and show relevant prices. Gender, race and
+          date of birth are optional context for reporting and are not used to decide what you see.</p>
+
+        <h2 class="h5 mt-4">4. Who else sees it</h2>
+        <p>Addresses you type or pin are sent to OpenStreetMap's Nominatim service to find their position on the map.
+          Map tiles are loaded from OpenStreetMap. Store and price lookups send your approximate area (not your name or
+          email) to the price data provider.</p>
+
+        <h2 class="h5 mt-4">5. Your rights</h2>
+        <p>You can update your details on the Profile page. You may ask for your account and its data to be deleted;
+          deleting an account removes your budgets, lists and preferences.</p>
+
+        <h2 class="h5 mt-4">6. Acceptable use</h2>
+        <p>Do not use another person's identity number or details, and do not try to disrupt the service.</p>
+
+        <p class="text-muted small mt-4 mb-0">Map data &copy; OpenStreetMap contributors (ODbL).</p>
+      </div></div>
+    </div>
+  </div>
+{% endblock %}

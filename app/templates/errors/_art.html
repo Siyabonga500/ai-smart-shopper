@@ -1,0 +1,58 @@
+{# Original illustration for the error pages: the Durban beachfront at sunrise (sea, a palm, a small shopping basket).
+   Each code adds one prop: 404 a magnifying glass, 403 a padlock, 500 spilled groceries, 429 a stopwatch, others a plain basket. #}
+{% macro scene(code) %}
+<svg class="error-art" viewBox="0 0 320 200" role="img" aria-labelledby="art-title" xmlns="http://www.w3.org/2000/svg">
+  <title id="art-title">{% if code == 404 %}A shopping basket on the beach with a magnifying glass, looking for something{% elif code == 403 %}A shopping basket with a padlock on the Durban beachfront{% elif code == 500 %}A tipped-over shopping basket with groceries on the sand{% elif code == 429 %}A shopping basket next to a stopwatch on the beach{% else %}A shopping basket on the Durban beachfront{% endif %}</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCE3D2"/><stop offset="1" stop-color="#F0EDEE"/></linearGradient>
+  </defs>
+  <rect width="320" height="200" rx="16" fill="url(#sky)"/>
+  {# sun rising over the Indian Ocean #}
+  <circle cx="232" cy="92" r="30" fill="#F26B3A" opacity=".9"/>
+  <g stroke="#F26B3A" stroke-width="3" stroke-linecap="round" opacity=".7">
+    <path d="M232 46v-9M266 58l6-6M198 58l-6-6M282 92h9M173 92h-9"/>
+  </g>
+  {# sea #}
+  <path d="M0 112h320v88H0z" fill="#2C666E"/>
+  <path d="M0 112c20-8 40-8 60 0s40 8 60 0 40-8 60 0 40 8 60 0 40-8 60 0 20 4 20 4v10H0z" fill="#DCE7E8" opacity=".55"/>
+  <path d="M0 130c22-7 44-7 66 0s44 7 66 0 44-7 66 0 44 7 66 0 44-7 56-3v12H0z" fill="#0B3D3B" opacity=".25"/>
+  {# sand #}
+  <path d="M0 158c60-14 120-10 180-4s100 6 140-4v50H0z" fill="#EBD3A8"/>
+  <path d="M0 176c70-10 150-6 210 0s80 2 110-4v28H0z" fill="#E0C48F" opacity=".7"/>
+  {# palm #}
+  <path d="M60 165c2-26 4-50 12-74" fill="none" stroke="#7A5A3A" stroke-width="6" stroke-linecap="round"/>
+  <g fill="#2E9E6B">
+    <path d="M72 92c-14-16-34-16-46-8 16-2 30 2 46 8z"/>
+    <path d="M72 92c10-20 30-26 44-20-16 2-30 10-44 20z"/>
+    <path d="M72 92c-6-22-22-32-36-30 14 6 26 16 36 30z"/>
+    <path d="M72 92c8-18 26-24 38-14-14 0-26 6-38 14z" opacity=".85"/>
+  </g>
+  {# the basket #}
+  {% if code == 500 %}
+  <g transform="rotate(-24 178 166) translate(0 6)">
+    <path d="M142 140h72l-8 38a8 8 0 0 1-8 6h-40a8 8 0 0 1-8-6z" fill="#F0EDEE" stroke="#0B3D3B" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M142 140c0-14 14-24 36-24s36 10 36 24" fill="none" stroke="#0B3D3B" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <circle cx="232" cy="178" r="9" fill="#D9534F"/><circle cx="252" cy="182" r="8" fill="#E6A817"/>
+  <rect x="200" y="182" width="20" height="10" rx="5" fill="#2E9E6B" transform="rotate(20 210 187)"/>
+  <path d="M236 168c4-3 6-6 6-10" stroke="#2E9E6B" stroke-width="3" stroke-linecap="round" fill="none"/>
+  {% else %}
+  <path d="M132 136h84l-9 42a9 9 0 0 1-9 7h-48a9 9 0 0 1-9-7z" fill="#F0EDEE" stroke="#0B3D3B" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M138 136c0-16 16-28 36-28s36 12 36 28" fill="none" stroke="#0B3D3B" stroke-width="4" stroke-linecap="round"/>
+  <path d="M152 148v26M174 148v26M196 148v26" stroke="#2C666E" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+  {% endif %}
+  {# the prop #}
+  {% if code == 404 %}
+  <circle cx="232" cy="150" r="17" fill="#fff" fill-opacity=".55" stroke="#F26B3A" stroke-width="5"/>
+  <path d="M244 162l16 16" stroke="#F26B3A" stroke-width="6" stroke-linecap="round"/>
+  <text x="232" y="157" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="#0B3D3B">?</text>
+  {% elif code == 403 %}
+  <rect x="163" y="134" width="24" height="20" rx="4" fill="#F26B3A"/>
+  <path d="M168 134v-6a7 7 0 0 1 14 0v6" fill="none" stroke="#0B3D3B" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="175" cy="144" r="3" fill="#0B3D3B"/>
+  {% elif code == 429 %}
+  <circle cx="246" cy="152" r="18" fill="#fff" stroke="#0B3D3B" stroke-width="4"/>
+  <path d="M246 152v-10M246 152l8 5M240 130h12" stroke="#0B3D3B" stroke-width="4" stroke-linecap="round"/>
+  {% endif %}
+</svg>
+{% endmacro %}

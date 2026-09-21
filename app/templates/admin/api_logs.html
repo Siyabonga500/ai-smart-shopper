@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% set recent = calls %}
+{% block title %}API call log - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.integrations_page') }}">Data sources</a></li><li class="breadcrumb-item active" aria-current="page">API call log</li></ol></nav>
+  <h1 class="h3 mb-3">API call log</h1>
+  <form class="card app-card mb-3" method="get" aria-label="Filter the API call log"><div class="card-body row g-2 align-items-end">
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1" for="service">Service</label>
+      <select class="form-select" id="service" name="service"><option value="">All</option>
+        {% for name in services %}<option value="{{ name }}" {{ 'selected' if name == service }}>{{ name }}</option>{% endfor %}</select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1" for="outcome">Result</label>
+      <select class="form-select" id="outcome" name="outcome"><option value="">All</option>
+        <option value="ok" {{ 'selected' if outcome == 'ok' }}>Successful</option><option value="error" {{ 'selected' if outcome == 'error' }}>Failed</option></select>
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small mb-1" for="day">Day</label>
+      <input class="form-control" type="date" id="day" name="day" value="{{ day.isoformat() if day else '' }}">
+    </div>
+    <div class="col-6 col-md-3 d-flex gap-2">
+      <button class="btn btn-brand flex-grow-1" type="submit">Filter</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.api_logs') }}">Clear</a>
+    </div>
+  </div></form>
+  <div class="card app-card"><div class="card-body">
+    <p class="text-muted-ink small">Newest first, at most 200 calls. Keys and tokens are removed from the addresses before they are logged.</p>
+    {% include "admin/_calls_table.html" %}
+  </div></div>
+{% endblock %}

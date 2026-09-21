@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% set use_maps = true %}
+{% from "partials/_ui.html" import price %}
+{% block title %}Shopping History - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('profile.index') }}" aria-label="Back to Profile"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered">Shopping History</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  <div class="summary-page">
+    <form method="get" action="{{ url_for('history.index') }}" class="card app-card mb-3" id="history-filters" novalidate>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6 col-md-3">
+            <label class="form-label small fw-600 mb-1" for="f-from">From</label>
+            <input class="form-control form-control-sm {{ 'is-invalid' if errors.get('from') }}" type="date" id="f-from" name="from" value="{{ filters.date_from.isoformat() if filters.date_from else '' }}">
+            <div class="invalid-feedback">{{ errors.get('from', '') }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small fw-600 mb-1" for="f-to">To</label>
+            <input class="form-control form-control-sm {{ 'is-invalid' if errors.get('to') }}" type="date" id="f-to" name="to" value="{{ filters.date_to.isoformat() if filters.date_to else '' }}">
+            <div class="invalid-feedback">{{ errors.get('to', '') }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small fw-600 mb-1" for="f-store">Store</label>
+            <select class="form-select form-select-sm" id="f-store" name="store">
+              <option value="">All stores</option>
+              {% for store in options.stores %}<option value="{{ store }}" {{ 'selected' if filters.store == store }}>{{ store }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small fw-600 mb-1" for="f-category">Category</label>
+            <select class="form-select form-select-sm" id="f-category" name="category">
+              <option value="">All categories</option>
+              {% for category in options.categories %}<option value="{{ category }}" {{ 'selected' if filters.category == category }}>{{ category }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-brand btn-sm" type="submit">Apply filters</button>
+          {% if filters.active or raw.get('from') or raw.get('to') %}<a class="btn btn-outline-secondary btn-sm" href="{{ url_for('history.index') }}">Clear</a>{% endif %}
+        </div>
+      </div>
+    </form>
+
+    {% if not page.trips %}
+      <div class="card app-card"><div class="card-body empty-state">
+        <i class="bi bi-clock-history"></i>
+        {% if filters.active %}
+          <p class="mt-2 mb-3">No trips match these filters.</p>
+          <a class="btn btn-outline-brand" href="{{ url_for('history.index') }}">Clear filters</a>
+        {% else %}
+          <p class="mt-2 mb-3">No shopping trips yet. When you press “Done – Purchase Completed”, the trip is saved here.</p>
+          <a class="btn btn-brand" href="{{ url_for('search.index') }}">Start shopping</a>
+        {% endif %}
+      </div></div>
+    {% else %}
+      {% if store_points %}
+        <section class="card app-card mb-3" aria-labelledby="history-map-title">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-baseline gap-2 mb-2">
+              <div><h2 class="h5 mb-1" id="history-map-title">Stores you have used</h2><p class="small text-muted-ink mb-0">Purchase locations from your completed shopping trips.</p></div>
+              <span class="status-pill">{{ store_points|length }} store{{ '' if store_points|length == 1 else 's' }}</span>
+            </div>
+            <div class="history-map" data-history-map data-points='{{ store_points|tojson }}' role="application" aria-label="Map of stores used in your purchase history"></div>
+          </div>
+        </section>
+      {% endif %}
+      <p class="small text-muted-ink" role="status">{{ page.total }} trip{{ '' if page.total == 1 else 's' }}{% if filters.active %} match your filters{% endif %}</p>
+      {% for label, trips in months %}
+        <h2 class="section-title mt-3">{{ label }}</h2>
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          {% for trip in trips %}
+            <li>
+              <a class="card app-card trip-card text-decoration-none" href="{{ url_for('history.detail', list_id=trip.id) }}">
+                <div class="card-body d-flex align-items-center gap-3 p-3">
+                  <span class="list-badge" aria-hidden="true"><i class="bi bi-bag-check"></i></span>
+                  <div class="min-w-0 flex-grow-1">
+                    <div class="fw-bold text-break text-dark">{{ trip.title }}</div>
+                    <div class="small text-muted-ink">{{ trip.closed_on|sast_date }} · {{ trip.item_count }} item{{ '' if trip.item_count == 1 else 's' }} · {{ trip.store_count }} store{{ '' if trip.store_count == 1 else 's' }}</div>
+                  </div>
+                  <div class="trip-total tabular text-dark">{{ price(trip.total) }}</div>
+                  <i class="bi bi-chevron-right text-muted-ink" aria-hidden="true"></i>
+                </div>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+
+      {% if page.pages > 1 %}
+        <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="History pages">
+          {% if page.page > 1 %}<a class="btn btn-outline-brand btn-sm" href="{{ url_for('history.index', page=page.page - 1, **args) }}">Newer</a>{% else %}<span></span>{% endif %}
+          <span class="small text-muted-ink">Page {{ page.page }} of {{ page.pages }}</span>
+          {% if page.page < page.pages %}<a class="btn btn-outline-brand btn-sm" href="{{ url_for('history.index', page=page.page + 1, **args) }}">Older</a>{% else %}<span></span>{% endif %}
+        </nav>
+      {% endif %}
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/history_map.js') }}"></script>{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "errors/_art.html" import scene %}
+{% block title %}{{ code }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="error-page text-center py-4">
+    {{ scene(code) }}
+    <p class="error-code" aria-hidden="true">{{ code }}</p>
+    <h1 class="error-title">{{ title }}</h1>
+    <p class="error-message text-muted-ink">{{ message }}</p>
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+      {% if current_user.is_authenticated %}
+        <a class="btn btn-brand" href="{{ url_for('dashboard.index') }}"><i class="bi bi-house-door me-1"></i>Back to home</a>
+        <a class="btn btn-outline-brand" href="{{ url_for('search.index') }}"><i class="bi bi-search me-1"></i>Search products</a>
+      {% else %}
+        <a class="btn btn-brand" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right me-1"></i>Sign in</a>
+      {% endif %}
+      {% if code == 500 or code == 429 %}<a class="btn btn-outline-secondary" href="{{ request.path }}"><i class="bi bi-arrow-clockwise me-1"></i>Try again</a>{% endif %}
+    </div>
+  </div>
+{% endblock %}

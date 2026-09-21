@@ -1,0 +1,21 @@
+{# Needs `recent` (list of log records from services.integrations). #}
+<div class="table-responsive">
+  <table class="table table-sm align-middle mb-0 admin-table">
+    <thead><tr><th scope="col">Time (SAST)</th><th scope="col">Service</th><th scope="col">Request</th><th scope="col">Status</th><th scope="col" class="text-end">Time taken</th></tr></thead>
+    <tbody>
+      {% for call in recent %}
+        <tr>
+          <td class="text-nowrap small">{{ call.when|sast_datetime }}</td>
+          <td>{{ call.service }}</td>
+          <td class="small text-break"><span class="text-muted-ink">{{ call.method }}</span> {{ call.url }}{% if call.error %}<div class="text-danger">{{ call.error }}</div>{% endif %}</td>
+          <td>{% if call.ok %}<span class="badge bg-success-subtle text-success-emphasis">{{ call.status }}</span>
+              {% else %}<span class="badge bg-danger-subtle text-danger-emphasis">{{ call.status if call.status else 'Failed' }}</span>{% endif %}
+              {% if call.attempt and call.attempt > 1 %}<span class="small text-muted-ink">try {{ call.attempt }}</span>{% endif %}</td>
+          <td class="text-end tabular small">{{ call.duration_ms ~ ' ms' if call.duration_ms is not none else '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="text-center text-muted-ink py-3">No API calls logged yet. The mock source makes none.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,57 @@
+# Local production-like stack:  docker compose up --build   ->  http://localhost:8000
+# Needs a .env next to this file with at least SECRET_KEY (see .env.example). Values here win over .env.
+services:
+  app:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: production
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATABASE_URL: postgresql://shopper:shopper@db:5432/shopper
+      REDIS_URL: redis://redis:6379/0
+      # Plain http on localhost: no https redirect, cookies not marked Secure, no proxy in front of the app.
+      # Put a TLS-terminating proxy in front and delete these three lines to get the production behaviour.
+      FORCE_HTTPS: "0"
+      TRUST_PROXY: "0"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/app/static/uploads
+      - logs:/app/app/logs
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shopper
+      POSTGRES_PASSWORD: shopper
+      POSTGRES_DB: shopper
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopper -d shopper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  logs:

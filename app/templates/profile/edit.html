@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "partials/_avatar.html" import avatar %}
+{% from "partials/_form_macros.html" import control, password %}
+{% set use_maps = true %}
+{% block title %}Edit profile - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <a class="small text-decoration-none" href="{{ url_for('profile.index') }}"><i class="bi bi-arrow-left"></i> Back to profile</a>
+      <h1 class="h3 my-3">Edit profile</h1>
+
+      <div class="card app-card mb-4">
+        <div class="card-body p-4">
+          <form method="post" action="{{ url_for('profile.edit') }}" enctype="multipart/form-data" novalidate id="profile-form">
+            {{ form.csrf_token }}
+
+            <div class="d-flex align-items-center gap-3 mb-3">
+              {{ avatar(current_user, 88) }}
+              <div class="flex-grow-1">
+                <label class="form-label" for="{{ form.ProfilePic.id }}">Profile picture</label>
+                {{ form.ProfilePic(class_="form-control" ~ (" is-invalid" if form.ProfilePic.errors else ""), accept="image/jpeg,image/png,image/webp") }}
+                <div class="invalid-feedback" data-error-for="ProfilePic">{{ form.ProfilePic.errors[0] if form.ProfilePic.errors }}</div>
+                <div class="form-text">JPG, PNG or WEBP, up to 2MB.</div>
+                {% if current_user.ProfilePic %}
+                  <div class="form-check mt-2">
+                    {{ form.RemovePhoto(class_="form-check-input") }}
+                    <label class="form-check-label" for="{{ form.RemovePhoto.id }}">{{ form.RemovePhoto.label.text }}</label>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">{{ control(form.FirstName, autocomplete="given-name", maxlength=50) }}</div>
+              <div class="col-md-6">{{ control(form.LastName, autocomplete="family-name", maxlength=50) }}</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="email-readonly">Email address</label>
+              <input class="form-control" id="email-readonly" type="email" value="{{ current_user.Email }}" readonly aria-describedby="email-help">
+              <div class="form-text" id="email-help">Your email is your sign-in name and cannot be changed here.</div>
+            </div>
+
+            {{ control(form.CellphoneNumber, type="tel", inputmode="numeric", autocomplete="tel-national", maxlength=14, placeholder="0821234567", hint="10 digits, for example 0821234567.") }}
+
+            {% with address_field=form.ResidentialAddress, lat_field=form.Latitude, lng_field=form.Longitude %}
+              {% include "partials/map_picker.html" %}
+            {% endwith %}
+
+            <button class="btn btn-brand" type="submit">Save changes</button>
+            <a class="btn btn-link" href="{{ url_for('profile.index') }}">Cancel</a>
+          </form>
+        </div>
+      </div>
+
+      <div class="card app-card" id="change-password">
+        <div class="card-body p-4">
+          <h2 class="h5">Change password</h2>
+          {% if not current_user.has_password %}
+            <p class="text-muted small">You signed in with Microsoft, so you have no password yet. Set one to also sign in with your email.</p>
+          {% endif %}
+          <form method="post" action="{{ url_for('profile.change_password') }}" novalidate>
+            {{ password_form.csrf_token }}
+            {% if current_user.has_password %}
+              {{ password(password_form.CurrentPassword, autocomplete="current-password", maxlength=72) }}
+            {% endif %}
+            {{ password(password_form.NewPassword, autocomplete="new-password", maxlength=72,
+                        hint="At least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.") }}
+            {{ password(password_form.ConfirmPassword, autocomplete="new-password", maxlength=72) }}
+            <button class="btn btn-outline-brand" type="submit">Change password</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/map_picker.js') }}"></script>
+  <script nonce="{{ csp_nonce() }}">
+    // Client-side check for the photo (the server checks the file's real type and size again).
+    (function () {
+      var input = document.getElementById("{{ form.ProfilePic.id }}");
+      if (!input) return;
+      var max = {{ config['MAX_UPLOAD_BYTES'] }};
+      input.addEventListener("change", function () {
+        var box = document.querySelector('[data-error-for="ProfilePic"]');
+        var file = input.files && input.files[0];
+        var message = "";
+        if (file && !/^image\/(jpeg|png|webp)$/.test(file.type)) message = "Choose a JPG, PNG or WEBP image.";
+        else if (file && file.size > max) message = "Photo must be 2MB or smaller.";
+        box.textContent = message;
+        input.classList.toggle("is-invalid", !!message);
+        if (message) input.value = "";
+      });
+    })();
+  </script>
+{% endblock %}

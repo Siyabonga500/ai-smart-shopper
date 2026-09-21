@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "partials/_ui.html" import meter, category_icon %}
+{% block title %}Set New Budget - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('budget.index') }}" aria-label="Back to My Budget"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered">Set New Budget</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  <form id="budget-form" method="post" action="{{ url_for('budget.new') }}" novalidate
+        data-allowance="{{ nsfas_allowance }}" data-max="{{ max_amount }}"
+        data-combined-key="{{ combined_key }}" data-categories='{{ categories|tojson }}'>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% if replaces %}
+      <div class="notice-warn mb-3" role="note">
+        <i class="bi bi-info-circle me-1"></i>You already have an active budget, <strong class="text-break">{{ replaces.title }}</strong>.
+        Saving this one closes it and removes its shopping list{% if replaces.item_count %} and {{ replaces.item_count }} item{{ '' if replaces.item_count == 1 else 's' }}{% endif %}.
+      </div>
+    {% endif %}
+    {% if errors.get('form') %}<div class="alert alert-danger" role="alert">{{ errors['form'] }}</div>{% endif %}
+    {% if errors.get('amounts') %}<div class="alert alert-danger" role="alert">{{ errors['amounts'] }}</div>{% endif %}
+
+    {# A. NSFAS allowance progress bar - a reference, never a block #}
+    <section class="card app-card mb-3" aria-labelledby="nsfas-title"><div class="card-body">
+      <div class="fw-bold" id="nsfas-title">NSFAS Monthly Allowance <span class="fw-normal text-muted-ink">(Reference)</span></div>
+      <div class="d-flex justify-content-between align-items-baseline mt-1">
+        <span><strong class="fs-5 tabular" id="nsfas-allocated">{{ nsfas.allocated|zar }}</strong> <span class="text-muted-ink">/ {{ nsfas.allowance|zar }}</span></span>
+        <span class="fw-600 tabular" id="nsfas-percent">{{ nsfas.percent|round(0)|int }}%</span>
+      </div>
+      <div class="meter mt-1 {{ 'warn' if nsfas.percent >= 100 }}" id="nsfas-meter" role="progressbar" aria-label="Allocated against the NSFAS reference" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ [nsfas.percent, 100]|min|round(0)|int }}">
+        <span style="width: {{ [nsfas.percent, 100]|min }}%"></span>
+      </div>
+      <div class="notice-warn mt-2" id="nsfas-warning" role="status" {% if not nsfas.warning %}hidden{% endif %}>
+        <i class="bi bi-exclamation-triangle me-1"></i><span id="nsfas-warning-text">{{ nsfas.warning }}</span>
+        <span class="d-block small">This is only a reference. You can still save this budget.</span>
+      </div>
+    </div></section>
+
+    {# B. Title #}
+    <div class="mb-3">
+      <label class="form-label fw-bold" for="title">Budget Title</label>
+      <div class="input-group">
+        <input class="form-control {{ 'is-invalid' if errors.get('title') }}" id="title" name="title" type="text" value="{{ title_value }}"
+               maxlength="{{ title_max }}" required autocomplete="off" aria-describedby="title-error">
+        <span class="input-group-text bg-white" aria-hidden="true"><i class="bi bi-pencil"></i></span>
+      </div>
+      <div class="invalid-feedback d-block" id="title-error">{{ errors.get('title', '') }}</div>
+    </div>
+
+    {# C. Budget type #}
+    <fieldset class="mb-3">
+      <legend class="form-label fw-bold fs-6">Choose Budget Type</legend>
+      <div class="row g-2">
+        <div class="col-6"><label class="choice-card" id="type-individual-card">
+          <input type="radio" name="budget_type" value="individual" {{ 'checked' if budget_type == 'individual' }}>
+          <i class="bi bi-grid" aria-hidden="true"></i><span class="fw-600">Individual Categories</span></label></div>
+        <div class="col-6"><label class="choice-card" id="type-combined-card">
+          <input type="radio" name="budget_type" value="combined" {{ 'checked' if budget_type == 'combined' }}>
+          <i class="bi bi-layers" aria-hidden="true"></i><span class="fw-600">Combined Budget</span></label></div>
+      </div>
+      <div class="form-text" id="type-hint" aria-live="polite"></div>
+    </fieldset>
+
+    {# D. Category rows #}
+    <section class="card app-card mb-3" aria-labelledby="cat-title"><div class="card-body">
+      <h2 class="h6 fw-bold mb-2" id="cat-title">Add Categories &amp; Allocate Amounts</h2>
+
+      <div id="category-rows">
+        {% if budget_type != 'combined' %}
+          {% for row in rows %}
+            <div class="cat-row" data-category="{{ row.category }}">
+              {{ category_icon(row.category) }}
+              <label class="mb-0" for="amount_{{ row.category }}">{{ row.category }}</label>
+              <input class="form-control {{ 'is-invalid' if row.error }}" id="amount_{{ row.category }}" name="amount_{{ row.category }}" type="text" inputmode="decimal"
+                     placeholder="R0" value="{{ row.raw }}" autocomplete="off" aria-label="{{ row.category }} amount in rand">
+              <button type="button" class="icon-btn text-over" data-action="remove" aria-label="Remove {{ row.category }}"><i class="bi bi-trash3"></i></button>
+              <div class="cat-error small text-danger">{{ row.error or '' }}</div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="cat-row" id="combined-row" {% if budget_type != 'combined' %}hidden{% endif %}>
+        {{ category_icon('Combined') }}
+        <label class="mb-0" for="amount_{{ combined_key }}">Combined Budget</label>
+        {% set combined_row = rows[0] if budget_type == 'combined' and rows else None %}
+        <input class="form-control {{ 'is-invalid' if combined_row and combined_row.error }}" id="amount_{{ combined_key }}" name="amount_{{ combined_key }}" type="text" inputmode="decimal"
+               placeholder="R0" value="{{ combined_row.raw if combined_row else '' }}" autocomplete="off"
+               aria-label="Combined budget amount in rand" {% if budget_type != 'combined' %}disabled{% endif %}>
+        <span></span>
+        <div class="cat-error small text-danger">{{ combined_row.error if combined_row and combined_row.error else '' }}</div>
+      </div>
+
+      <div class="text-center pt-2">
+        <div class="dropdown d-inline-block" id="add-category-wrap">
+          <button class="btn btn-link text-decoration-none fw-600" type="button" id="add-category" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-plus-lg me-1"></i>Add Category</button>
+          <ul class="dropdown-menu" id="add-category-menu"></ul>
+        </div>
+        <button class="btn btn-link btn-sm text-muted-ink" type="button" id="clear-categories">Clear all categories</button>
+      </div>
+      <p class="form-text text-center mb-0" id="add-hint"></p>
+    </div></section>
+
+    <div class="total-bar mb-3">
+      <span class="fw-bold">Total Budget</span>
+      <span class="amount tabular" id="total-amount" aria-live="polite">{{ total|zar }}</span>
+    </div>
+
+    <div class="row g-2 mb-4">
+      <div class="col-5"><a class="btn btn-outline-secondary w-100 btn-lg-tap" href="{{ url_for('budget.index') }}">Cancel</a></div>
+      <div class="col-7"><button class="btn btn-accent w-100 btn-lg-tap" type="submit" id="save-budget">Save Budget</button></div>
+    </div>
+  </form>
+
+  <template id="row-template">
+    <div class="cat-row" data-category="">
+      <span class="cat-icon" aria-hidden="true"><i class="bi bi-tag"></i></span>
+      <label class="mb-0"></label>
+      <input class="form-control" type="text" inputmode="decimal" placeholder="R0" autocomplete="off">
+      <button type="button" class="icon-btn text-over" data-action="remove"><i class="bi bi-trash3"></i></button>
+      <div class="cat-error small text-danger"></div>
+    </div>
+  </template>
+
+  {# F. Confirmation #}
+  <div class="modal fade" id="confirm-modal" tabindex="-1" aria-labelledby="confirm-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="confirm-title">Budget Summary</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="summary-list" id="confirm-list"></ul>
+          <div class="notice-warn mt-3" id="confirm-warning" hidden></div>
+          {% if replaces %}<p class="small text-muted-ink mt-3 mb-0">Saving closes <strong>{{ replaces.title }}</strong> and removes its shopping list.</p>{% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-accent" id="confirm-save">Confirm &amp; Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/budget_new.js') }}"></script>{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% from "partials/_avatar.html" import avatar %}
+{% from "partials/_form_macros.html" import control, select %}
+{% block title %}Profile - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="row g-4">
+    {# ---------- details ---------- #}
+    <div class="col-12 col-lg-5">
+      <div class="card app-card h-100">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            {{ avatar(current_user, 80) }}
+            <div class="min-w-0">
+              <h1 class="h4 mb-0 text-break">{{ current_user.FullName }}</h1>
+              <div class="text-muted small text-break">{{ current_user.Email }}</div>
+            </div>
+          </div>
+
+          <dl class="profile-details mb-3">
+            <dt>Cellphone</dt><dd>{{ current_user.CellphoneNumber or '—' }}</dd>
+            <dt>ID number</dt><dd><span class="font-monospace">{{ current_user.masked_sa_id }}</span></dd>
+            <dt>Address</dt><dd class="text-break">{{ current_user.ResidentialAddress or '—' }}
+              {% if current_user.has_location %}<br><small class="text-muted"><i class="bi bi-geo-alt"></i> Map position saved</small>{% endif %}
+            </dd>
+            <dt>Member since</dt><dd>{{ current_user.CreatedOn|sast_date }}</dd>
+            <dt>Last sign-in</dt><dd>{{ current_user.LastLogin|sast_datetime }}</dd>
+          </dl>
+          <a class="btn btn-brand" href="{{ url_for('profile.edit') }}"><i class="bi bi-pencil me-1"></i>Edit profile</a>
+        </div>
+      </div>
+    </div>
+
+    {# ---------- account stats ---------- #}
+    <div class="col-12 col-lg-7">
+      <div class="card app-card h-100">
+        <div class="card-body p-4">
+          <h2 class="h5 mb-3">Your account</h2>
+          <div class="row g-3 text-center mb-3">
+            <div class="col-4"><div class="stat"><div class="stat-value">{{ stats.budget_count }}</div><div class="stat-label">Budgets</div></div></div>
+            <div class="col-4"><div class="stat"><div class="stat-value">{{ stats.total_spent|zar }}</div><div class="stat-label">Total spent</div></div></div>
+            <div class="col-4"><div class="stat">
+              <div class="stat-value stat-text">{{ stats.active_budget.Title if stats.active_budget else 'None' }}</div>
+              <div class="stat-label">Active budget</div></div></div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-baseline">
+            <h3 class="h6 text-uppercase text-muted mb-0">Last 5 purchases</h3>
+            <a class="small fw-600" href="{{ url_for('history.index') }}">Shopping history <i class="bi bi-chevron-right"></i></a>
+          </div>
+          {% if stats.recent_purchases %}
+            <ul class="list-group list-group-flush">
+              {% for item in stats.recent_purchases %}
+                <li class="list-group-item px-0 d-flex justify-content-between align-items-start gap-2">
+                  <div class="d-flex align-items-center gap-2 min-w-0">
+                    {% if item.ItemImage %}
+                      <img src="{{ item.ItemImage }}" alt="{{ item.ItemName }}" class="img-thumbnail rounded-2" style="width: 40px; height: 40px; object-fit: cover; background: #f8f9fa;">
+                    {% endif %}
+                    <div class="min-w-0">
+                      <div class="text-break">{{ item.ItemName }}</div>
+                      <div class="small text-muted">{{ item.StoreName or 'Store not recorded' }}
+                        · {{ (item.PurchasedDate or item.shopping_list.DateClosed or item.DateCreated)|sast_date }}</div>
+                    </div>
+                  </div>
+                  <div class="text-end text-nowrap">
+                    <div>{{ item.TotalItemCost|zar }}</div>
+                    {% if item.ItemQuantity > 1 %}<div class="small text-muted">{{ item.ItemQuantity }} × {{ item.UnitCost|zar }}</div>{% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted mb-0">No purchases yet. Items appear here once you finish a shopping list.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ---------- preferences ---------- #}
+    <div class="col-12" id="preferences">
+      <div class="card app-card">
+        <div class="card-body p-4">
+          <h2 class="h5">Preferences</h2>
+          <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+            <p class="text-muted small mb-0">Tell us what you like so searches can favour it: diets, brands, stores and categories.</p>
+            <span class="status-pill flex-shrink-0">{{ preference_total }} saved</span>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-12 col-lg-7">
+              {% for kind, rows in preferences.items() %}
+                <div class="mb-3">
+                  <h3 class="h6 mb-2">{{ kind }}</h3>
+                  {% if rows %}
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for pref in rows %}
+                        <form method="post" action="{{ url_for('profile.delete_preference', preference_id=pref.PreferenceId) }}" class="pref-chip">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <span class="text-break">{{ pref.PreferenceValue }}</span>
+                          <button type="submit" class="btn-close btn-close-sm" aria-label="Remove {{ pref.PreferenceValue }}"></button>
+                        </form>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <span class="text-muted small">Nothing added yet.</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="col-12 col-lg-5">
+              <form method="post" action="{{ url_for('profile.add_preference') }}" novalidate class="pref-add">
+                {{ preference_form.csrf_token }}
+                <h3 class="h6">Add a preference</h3>
+                {{ select(preference_form.PreferenceType) }}
+                {{ control(preference_form.PreferenceValue, placeholder="e.g. Vegetarian, Albany, Checkers", maxlength=100) }}
+                <button class="btn btn-outline-brand" type="submit"><i class="bi bi-plus-lg me-1"></i>Add</button>
+              </form>
+              <p class="small text-muted-ink mt-3 mb-0"><i class="bi bi-lightbulb me-1"></i>Saved preferences are used to personalise recommendations.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{# Small reusable pieces. Import with:  {% from "partials/_ui.html" import price, meter %} #}
+
+{# R29 with the cents small and raised, like the mock-ups: R29⁹⁹. Whole amounts show no cents. #}
+{% macro price(value, cls="") -%}
+  {%- set parts = value|zar_parts -%}
+  <span class="price {{ cls }}"><span class="price-cur">R</span>{{ parts[0] }}{% if parts[1] %}<sup>{{ parts[1] }}</sup>{% endif %}</span>
+{%- endmacro %}
+
+{# A progress bar. percent may exceed 100 (over budget); the bar is capped at full width and turns orange from 85%. #}
+{% macro meter(percent, thin=False, label="") -%}
+  {%- set p = percent|float -%}
+  <div class="meter {{ 'thin' if thin }} {{ 'warn' if p >= 85 }}" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+       aria-valuenow="{{ [p, 100]|min|round(0)|int }}" {% if label %}aria-label="{{ label }}"{% endif %}>
+    <span style="width: {{ [[p, 0]|max, 100]|min }}%"></span>
+  </div>
+{%- endmacro %}
+
+{% macro category_icon(category) -%}
+  {%- set icons = {"Grocery": "basket2", "Toiletries": "droplet", "Clothes": "handbag", "Electronics": "tv", "Combined": "layers"} -%}
+  <span class="cat-icon" aria-hidden="true"><i class="bi bi-{{ icons.get(category, 'tag') }}"></i></span>
+{%- endmacro %}

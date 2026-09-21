@@ -1,0 +1,36 @@
+# AI Smart Shopper - runtime dependencies (pinned to the versions this scaffold was tested with)
+
+# Core web framework
+Flask==3.1.3
+Werkzeug==3.1.8
+
+# Database / ORM / migrations
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.54
+Flask-Migrate==4.1.0
+alembic==1.20.0
+psycopg2-binary==2.9.13        # PostgreSQL driver (production)
+
+# Auth, forms, CSRF
+Flask-Login==0.6.3
+Flask-Bcrypt==1.0.1
+Flask-WTF==1.3.0
+WTForms==3.2.2
+email-validator==2.3.0         # required by WTForms' Email() validator
+dnspython==2.8.0               # optional MX/A lookup behind EMAIL_DNS_CHECK
+Flask-Dance==7.1.0             # Microsoft (Azure AD / Entra ID) OAuth
+cryptography==46.0.7           # encrypts the API keys stored by the admin portal
+Flask-Caching==2.5.1           # 15-minute cache for retail/price lookups and geocoding
+
+# Config / HTTP
+python-dotenv==1.2.3
+requests==2.34.2               # product/price + weather API calls (services/)
+
+# Production server
+gunicorn==26.2.0               # Procfile: web: gunicorn run:app
+whitenoise==6.12.0             # serves /static from the app (no nginx needed)
+Flask-Limiter==4.1.1           # request-rate limits on sign-in, registration and /api
+Flask-Talisman==1.1.0          # HTTPS redirect, HSTS, Content-Security-Policy, X-Frame-Options
+redis==8.1.0                   # shared cache and rate-limit counters when REDIS_URL is set
+
+# Tests and code style: pip install -r requirements-dev.txt

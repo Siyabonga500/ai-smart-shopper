@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% from "partials/_ui.html" import meter %}
+{% set use_charts = true %}
+{% block title %}My Budget - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <span class="page-back-spacer" style="width:2.5rem"></span>
+    <h1 class="page-title centered">My Budget</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  {# A. Active budget management #}
+  <div class="d-grid d-sm-flex gap-2 mb-3">
+    {% if is_active %}
+      <button type="button" class="btn btn-accent btn-lg-tap flex-sm-fill" data-bs-toggle="modal" data-bs-target="#remove-budget-modal">
+        <i class="bi bi-trash3 me-1"></i>Remove Current Budget
+      </button>
+    {% else %}
+      <a class="btn btn-brand btn-lg-tap flex-sm-fill" href="{{ url_for('budget.new') }}"><i class="bi bi-plus-lg me-1"></i>Create New Budget</a>
+    {% endif %}
+  </div>
+
+  {% if not budget %}
+    <div class="card app-card"><div class="card-body empty-state">
+      <i class="bi bi-wallet2"></i>
+      <p class="mt-2 mb-3">You have not set a budget yet. Set one before you start shopping.</p>
+      <a class="btn btn-brand" href="{{ url_for('budget.new') }}">Create New Budget</a>
+    </div></div>
+  {% else %}
+    {# B. Current budget summary #}
+    <section class="teal-card mb-3" aria-labelledby="budget-title">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+        <h2 class="card-title text-break" id="budget-title">{{ budget.Title }}</h2>
+        <span class="status-pill flex-shrink-0">{% if is_active %}Active{% else %}Closed {{ budget.ClosedDate|sast_date }}{% endif %}</span>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <div class="ring-wrap" data-ring data-percent="{{ position.percent_used }}">
+          <canvas aria-hidden="true" width="144" height="144"></canvas>
+          <div class="ring-center"><span class="pct">{{ position.percent_used|round(0)|int }}%</span><span class="sub">used</span></div>
+        </div>
+        <ul class="flex-grow-1 mb-0 summary-list">
+          <li><span>Total Budget</span><strong>{{ position.total|zar }}</strong></li>
+          <li><span>Used Amount</span><strong>{{ position.used|zar }}</strong></li>
+          <li><span>{{ 'Over by' if position.is_over else 'Remaining' }}</span>
+              <strong class="{{ 'on-teal-warn' if position.percent_used >= 85 }}">{{ (position.over_by if position.is_over else position.remaining)|zar }}</strong></li>
+        </ul>
+      </div>
+      {% if position.is_over %}
+        <p class="mb-0 mt-3 small"><i class="bi bi-exclamation-triangle me-1"></i>This budget is overspent. That is only a warning; nothing is blocked.</p>
+      {% endif %}
+      {% if is_active %}
+        <a class="btn btn-light w-100 mt-3 fw-600 text-brand" href="{{ url_for('search.index') }}">Proceed to Shopping <i class="bi bi-cart3 ms-1"></i></a>
+      {% endif %}
+    </section>
+
+    {# C. Category summary #}
+    <h2 class="section-title">Budget Categories</h2>
+    <div class="card app-card"><div class="table-responsive">
+      <table class="data-table">
+        <thead><tr><th scope="col">Category</th><th scope="col" class="num">Allocated</th><th scope="col">Used</th><th scope="col" class="num">Remaining</th></tr></thead>
+        <tbody>
+          {% for row in category_rows %}
+            <tr>
+              <th scope="row" class="fw-normal bg-white">{{ row.category }}</th>
+              <td class="num">{{ row.allocated|zar }}</td>
+              <td class="cell-meter"><span class="tabular">{{ row.used|zar }}</span>{{ meter(row.percent, thin=True, label=row.category ~ ' used') }}</td>
+              <td class="num {{ 'text-over' if row.remaining < 0 }}">{{ row.remaining|zar }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr><td>Total</td><td class="num">{{ position.total|zar }}</td><td>{{ position.used|zar }}</td>
+          <td class="num {{ 'text-over' if position.remaining < 0 }}">{{ position.remaining|zar }}</td></tr></tfoot>
+      </table>
+    </div></div>
+    {% if category_rows|length == 1 and category_rows[0].category == 'Combined' %}
+      <p class="small text-muted-ink mt-2">This is a Combined Budget: one allocation covers everything you buy.</p>
+    {% endif %}
+  {% endif %}
+
+  {# D. Monthly performance #}
+  <h2 class="section-title">Monthly Overview vs {{ nsfas_allowance|zar }} Allowance</h2>
+  <div class="card app-card"><div class="card-body py-2">
+    {% for month in performance %}
+      <div class="month-row">
+        <div><div class="fw-600">{{ 'This Month' if loop.first else 'Last Month' }}</div><div class="small text-muted-ink">{{ month.label }}</div></div>
+        <div class="month-bar">
+          {% if month.has_budget %}
+            {{ meter(month.percent, label=month.label ~ ' used of allocated') }}
+            <div class="small text-muted-ink mt-1 tabular">{{ month.percent|round(0)|int }}% &middot; {{ month.used|zar }} used of {{ month.allocated|zar }} allocated</div>
+          {% else %}
+            <div class="meter"><span style="width:0"></span></div>
+            <div class="small text-muted-ink mt-1">No budget this month</div>
+          {% endif %}
+        </div>
+        <div class="delta {{ 'bad' if month.vs_reference < 0 else 'good' }}">
+          {% if month.has_budget %}{{ month.vs_reference|signed_zar }}{% else %}&ndash;{% endif %}
+          {% if month.has_budget %}<div class="small fw-normal text-muted-ink">
+            {% if month.vs_reference >= 0 %}{{ month.vs_reference|zar }} left of {{ nsfas_allowance|zar }}{% else %}{{ (0 - month.vs_reference)|zar }} over {{ nsfas_allowance|zar }}{% endif %}
+          </div>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+    <p class="small text-muted-ink mb-0 mt-2"><i class="bi bi-info-circle me-1"></i>The {{ nsfas_allowance|zar }} NSFAS meal allowance is a reference only. Going over it is never blocked.</p>
+  </div></div>
+
+  {# E. Six-month graph #}
+  <h2 class="section-title">Budget vs Used <span class="fw-normal text-muted-ink">(last {{ series.labels|length }} months)</span></h2>
+  <div class="card app-card"><div class="card-body">
+    {% if series.has_data %}
+      <div class="chart-legend" aria-hidden="true">
+        <span><span class="key" style="border-color: var(--chart-allocated)"></span>Budget allocated</span>
+        <span><span class="key" style="border-color: var(--chart-used)"></span>Amount used</span>
+      </div>
+      <div class="chart-box"><canvas id="six-month-chart" role="img"
+        aria-label="Line chart of allocated budget and amount used for each of the last {{ series.labels|length }} months. The same numbers are in the table below."></canvas></div>
+      <details class="mt-3">
+        <summary class="small text-muted-ink">View as table</summary>
+        <div class="table-responsive mt-2">
+          <table class="data-table">
+            <thead><tr><th scope="col">Month</th><th scope="col" class="num">Allocated</th><th scope="col" class="num">Used</th></tr></thead>
+            <tbody>
+              {% for label in series.long_labels %}
+                <tr><th scope="row" class="fw-normal">{{ label }}</th><td class="num">{{ series.allocated[loop.index0]|zar }}</td><td class="num">{{ series.used[loop.index0]|zar }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    {% else %}
+      <div class="empty-state py-3"><i class="bi bi-graph-up"></i><p class="mt-2 mb-0">Your spending trend appears here after your first budget.</p></div>
+    {% endif %}
+  </div></div>
+
+  {% if is_active %}
+  <div class="modal fade" id="remove-budget-modal" tabindex="-1" aria-labelledby="remove-budget-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" method="post" action="{{ url_for('budget.remove') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="remove-budget-title"><i class="bi bi-exclamation-triangle text-over me-2"></i>Remove current budget?</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Removing <strong class="text-break">{{ budget.Title }}</strong> will also remove:</p>
+          <ul>
+            <li>your active shopping list</li>
+            <li>the {{ list_item_count }} item{{ '' if list_item_count == 1 else 's' }} currently on that list</li>
+          </ul>
+          <p class="mb-0">This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-accent">Confirm Remove</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <script type="application/json" id="budget-data">{{ {"percent": position.percent_used if position else 0, "series": series}|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/budget.js') }}"></script>{% endblock %}

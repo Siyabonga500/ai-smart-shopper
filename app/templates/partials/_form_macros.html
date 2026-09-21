@@ -1,0 +1,45 @@
+{# Bootstrap 5 form helpers.
+
+   Every control is followed by an .invalid-feedback element: the server fills it with the
+   first validation error, and static/js/register.js re-uses the same element for live checks. #}
+
+{% macro control(field, hint=None, feedback_id=None) %}
+  {%- set has_error = field.errors|length > 0 -%}
+  <div class="mb-3">
+    <label class="form-label" for="{{ field.id }}">{{ field.label.text }}
+      {%- if field.flags.required %}<span class="text-warning-strong" aria-hidden="true"> *</span>{% endif %}
+    </label>
+    {{ field(class_="form-control" ~ (" is-invalid" if has_error else ""), **kwargs) }}
+    <div class="invalid-feedback" data-error-for="{{ field.name }}">{{ field.errors[0] if has_error }}</div>
+    {% if hint %}<div class="form-text">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro select(field, hint=None) %}
+  {%- set has_error = field.errors|length > 0 -%}
+  <div class="mb-3">
+    <label class="form-label" for="{{ field.id }}">{{ field.label.text }}
+      {%- if field.flags.required %}<span class="text-warning-strong" aria-hidden="true"> *</span>{% endif %}
+    </label>
+    {{ field(class_="form-select" ~ (" is-invalid" if has_error else ""), **kwargs) }}
+    <div class="invalid-feedback" data-error-for="{{ field.name }}">{{ field.errors[0] if has_error }}</div>
+    {% if hint %}<div class="form-text">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{# Password box with a show/hide button. #}
+{% macro password(field, hint=None) %}
+  {%- set has_error = field.errors|length > 0 -%}
+  <div class="mb-3">
+    <label class="form-label" for="{{ field.id }}">{{ field.label.text }}<span class="text-warning-strong" aria-hidden="true"> *</span></label>
+    <div class="input-group has-validation">
+      {{ field(class_="form-control" ~ (" is-invalid" if has_error else ""), **kwargs) }}
+      <button class="btn btn-outline-secondary" type="button" data-toggle-password="{{ field.id }}"
+              aria-label="Show password" aria-pressed="false"><i class="bi bi-eye"></i></button>
+      <div class="invalid-feedback" data-error-for="{{ field.name }}">{{ field.errors[0] if has_error }}</div>
+    </div>
+    {% if hint %}<div class="form-text">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro csrf(form) %}{{ form.hidden_tag() }}{% endmacro %}

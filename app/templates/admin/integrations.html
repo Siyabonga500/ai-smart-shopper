@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% from "admin/_pager.html" import when %}
+{% block title %}Integrations - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+    <h1 class="h3 mb-0">Data sources</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.api_logs') }}"><i class="bi bi-list-ul me-1"></i>API call log</a>
+  </div>
+  <p class="text-muted-ink">Choose where product prices come from. Exactly one source is active. <em>Sync now</em> clears the cached prices and runs one test search, so you can tell that the source and its key work.</p>
+
+  <div class="row g-3 mb-4">
+    {% for s in sources %}
+      <div class="col-lg-4">
+        <section class="card app-card h-100 admin-source {{ 'is-active' if s.is_active }}" aria-labelledby="src-{{ s.key }}" data-source="{{ s.key }}"><div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h2 class="h5 mb-0" id="src-{{ s.key }}">{{ s.label }}</h2>
+            {% if s.is_active %}<span class="badge text-bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>{% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>{% endif %}
+          </div>
+          <p class="text-muted-ink small">{{ s.description }}</p>
+
+          {% if s.needs_key %}
+            <div class="small mb-2">
+              <span class="text-muted-ink">{{ s.key_label }}:</span>
+              {% if s.has_key %}<span class="font-monospace">{{ s.masked_key }}</span> <span class="text-muted-ink">({{ s.key_origin }})</span>
+              {% elif s.key_origin == 'stored but unreadable' %}<span class="text-danger">saved key cannot be read (the server secret changed). Enter it again.</span>
+              {% else %}<span class="text-danger">not set</span>{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('admin.integration_key', source=s.key) }}" class="mb-2" autocomplete="off">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="visually-hidden" for="key-{{ s.key }}">New {{ s.key_label|lower }} for {{ s.label }}</label>
+              <div class="input-group input-group-sm">
+                <input class="form-control" type="password" id="key-{{ s.key }}" name="ApiKey" minlength="8" maxlength="512" required
+                       placeholder="Paste a new {{ s.key_label|lower }}" autocomplete="new-password" spellcheck="false">
+                <button class="btn btn-outline-secondary" type="submit">Save</button>
+              </div>
+            </form>
+            {% if s.can_remove_key %}
+              <form method="post" action="{{ url_for('admin.integration_key_delete', source=s.key) }}" class="mb-2" data-confirm="Remove the saved {{ s.key_label|lower }} for {{ s.label }}?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-link btn-sm text-danger p-0" type="submit">Remove saved key</button>
+              </form>
+            {% endif %}
+          {% endif %}
+
+          <div class="small mt-auto pt-2 border-top">
+            <div class="text-muted-ink">Last sync</div>
+            {% if s.last_sync_on %}
+              <div>{{ when(s.last_sync_on) }}
+                {% if s.last_sync_status == 'ok' %}<span class="badge bg-success-subtle text-success-emphasis">OK</span>{% else %}<span class="badge bg-danger-subtle text-danger-emphasis">Failed</span>{% endif %}</div>
+              <div class="text-muted-ink" data-sync-message>{{ s.last_sync_message }}</div>
+            {% else %}<div>Never</div>{% endif %}
+            <div class="d-flex gap-2 mt-2">
+              <form method="post" action="{{ url_for('admin.integration_sync', source=s.key) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-brand btn-sm" type="submit" data-busy-text="Syncing…"><i class="bi bi-arrow-repeat me-1"></i>Sync now</button>
+              </form>
+              {% if not s.is_active %}
+                <form method="post" action="{{ url_for('admin.integration_activate', source=s.key) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">Make active</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </div></section>
+      </div>
+    {% endfor %}
+  </div>
+
+  <section class="card app-card" aria-labelledby="recent-title"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h6 mb-0" id="recent-title">Latest API calls</h2>
+      <a class="small" href="{{ url_for('admin.api_logs') }}">See all</a>
+    </div>
+    {% include "admin/_calls_table.html" %}
+  </div></section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

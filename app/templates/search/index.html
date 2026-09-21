@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "partials/_ui.html" import meter, category_icon %}
+{% block title %}Search Products - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <span class="page-back-spacer" style="width:2.5rem"></span>
+    <h1 class="page-title centered">Search Products</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  <div id="search-app"
+       data-search-url="{{ url_for('shop_api.search_products') }}"
+       data-product-url="{{ url_for('shop_api.product_details') }}"
+       data-recs-url="{{ url_for('shop_api.recommendations_strip') }}"
+       data-add-url="{{ url_for('shop_api.add_item') }}"
+       data-stores-url="{{ url_for('api.stores_near_point') }}"
+       data-list-url="{{ url_for('shopping.index') }}"
+       data-budget-new-url="{{ url_for('budget.new') }}"
+       data-radius-default="{{ radius_default }}" data-radius-max="{{ radius_max }}">
+
+    {# Budget strip: what the list costs and what is left. It never stops the student adding items. #}
+    {% if position %}
+      <section class="card app-card mb-3" id="budget-strip" aria-label="Your budget"><div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-baseline gap-2 flex-wrap">
+          <span class="small text-muted-ink text-truncate">{{ budget.Title }}</span>
+          <span class="small"><span class="text-muted-ink">In list</span> <strong class="tabular" id="strip-in-list">{{ position.in_list|zar }}</strong>
+            <span class="mx-1 text-muted-ink">·</span>
+            <span class="text-muted-ink" id="strip-remaining-label">{{ 'Over by' if position.is_over else 'Remaining' }}</span>
+            <strong class="tabular {{ 'text-over' if position.is_over }}" id="strip-remaining">{{ (position.over_by if position.is_over else position.remaining)|zar }}</strong></span>
+        </div>
+        <div class="mt-1">{{ meter(position.percent_used, thin=True, label="Budget used") }}</div>
+      </div></section>
+    {% else %}
+      <div class="notice-warn mb-3" role="note" id="no-budget-note">
+        <i class="bi bi-info-circle me-1"></i>You have no active budget yet. <a href="{{ url_for('budget.new') }}" class="fw-600">Create one</a>
+        so items can be added to your shopping list.
+      </div>
+    {% endif %}
+
+    <div id="alert-area" aria-live="assertive"></div>
+
+    {# "Recommended for you" carousel #}
+    <section id="recs" class="mb-3" aria-labelledby="recs-title">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2 class="section-title mt-0" id="recs-title">Recommended for You</h2>
+        <span class="d-none d-md-inline-flex gap-1">
+          <button type="button" class="icon-btn" data-scroll="-1" aria-label="Scroll recommendations left"><i class="bi bi-chevron-left"></i></button>
+          <button type="button" class="icon-btn" data-scroll="1" aria-label="Scroll recommendations right"><i class="bi bi-chevron-right"></i></button>
+        </span>
+      </div>
+      <div class="carousel-row" id="recs-row" tabindex="0" aria-label="Recommended products"></div>
+    </section>
+
+    {# Search bar #}
+    <form id="search-form" role="search" class="mb-3" novalidate>
+      <div class="input-group input-group-lg">
+        <span class="input-group-text bg-white"><i class="bi bi-search" aria-hidden="true"></i></span>
+        <input class="form-control" id="q" name="q" type="search" placeholder="Search products, e.g. milk, rice, soap"
+               maxlength="100" autocomplete="off" aria-label="Search products" enterkeyhint="search">
+        <button class="btn btn-brand" type="submit">Search</button>
+      </div>
+      <div class="d-flex gap-2 flex-wrap mt-2" role="group" aria-label="Category" id="category-chips">
+        <button type="button" class="chip active" data-category="" aria-pressed="true">All</button>
+        {% for category in categories %}
+          <button type="button" class="chip" data-category="{{ category }}" aria-pressed="false">{{ category }}</button>
+        {% endfor %}
+      </div>
+    </form>
+    
+    <br/>
+    <br/>
+
+    <div class="row g-3">
+      {# Filters #}
+      <div class="col-lg-3">
+        <button class="btn btn-outline-brand w-100 d-lg-none mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#filters"
+                aria-expanded="false" aria-controls="filters" id="filters-toggle">
+          <i class="bi bi-sliders me-1"></i>Filters <span class="badge text-bg-secondary ms-1" id="filters-count" hidden></span>
+        </button>
+        <div class="collapse d-lg-block" id="filters">
+          <div class="card app-card"><div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h2 class="h6 fw-bold mb-0">Filters</h2>
+              <button type="button" class="btn btn-link btn-sm p-0" id="reset-filters">Reset</button>
+            </div>
+
+            <fieldset class="mb-3">
+              <legend class="form-label small fw-600 mb-1">Price (R)</legend>
+              <div class="row g-2">
+                <div class="col-6"><label class="visually-hidden" for="min-price">Lowest price</label>
+                  <input class="form-control form-control-sm" id="min-price" type="text" inputmode="decimal" placeholder="Min" autocomplete="off"></div>
+                <div class="col-6"><label class="visually-hidden" for="max-price">Highest price</label>
+                  <input class="form-control form-control-sm" id="max-price" type="text" inputmode="decimal" placeholder="Max" autocomplete="off"></div>
+              </div>
+              <div class="small text-danger mt-1" id="price-error" role="alert"></div>
+            </fieldset>
+
+            <div class="mb-3">
+              <label class="form-label small fw-600 d-flex justify-content-between mb-1" for="radius">
+                <span>Distance</span><span class="text-muted-ink">Within <output id="radius-out" for="radius">{{ radius_default }}</output> km</span></label>
+              <input type="range" class="form-range" id="radius" min="1" max="{{ radius_max }}" step="1" value="{{ radius_default }}">
+            </div>
+
+            <fieldset class="mb-0">
+              <legend class="form-label small fw-600 mb-1">Stores</legend>
+              <div class="store-filter" id="store-filter" aria-live="polite"><span class="sk sk-w80"></span><span class="sk sk-w60"></span><span class="sk sk-w80"></span><span class="visually-hidden">Loading stores…</span></div>
+              <div class="small mt-1"><button type="button" class="btn btn-link btn-sm p-0" id="clear-stores">All stores</button></div>
+            </fieldset>
+          </div></div>
+        </div>
+      </div>
+
+      {# Results #}
+      <div class="col-lg-9">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <div class="small text-muted-ink" id="status" role="status" aria-live="polite">Search for a product or pick a category.</div>
+          <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted-ink mb-0" for="sort">Sort</label>
+            <select class="form-select form-select-sm w-auto" id="sort">
+              {% for key, label in sorts %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="product-grid" id="results" aria-busy="false"></div>
+        <div class="empty-state" id="empty" hidden>
+          <i class="bi bi-search"></i>
+          <p class="mt-2 mb-0" id="empty-text">Search for a product or pick a category to compare prices near you.</p>
+        </div>
+        <div class="text-center mt-3"><button type="button" class="btn btn-outline-brand" id="load-more" hidden>Show more</button></div>
+      </div>
+    </div>
+  </div>
+
+  {# Product details #}
+  <div class="modal fade" id="product-modal" tabindex="-1" aria-labelledby="product-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5 text-break" id="product-modal-title">Product</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="product-modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" aria-live="polite" aria-atomic="true"><div id="toast-holder"></div></div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/search.js') }}"></script>{% endblock %}

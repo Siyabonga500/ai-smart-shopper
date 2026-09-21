@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}My Shopping List - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('dashboard.index') }}" aria-label="Back to Home"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered">My Shopping List</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  {% if not budget %}
+    <div class="card app-card"><div class="card-body empty-state">
+      <i class="bi bi-card-checklist"></i>
+      <p class="mt-2 mb-3">Your shopping list belongs to your active budget, and you do not have one yet.</p>
+      <a class="btn btn-brand" href="{{ url_for('budget.new') }}">Create New Budget</a>
+    </div></div>
+  {% else %}
+    <div id="list-app"
+         data-fragment-url="{{ url_for('shopping.fragment') }}"
+         data-items-url="{{ url_for('shop_api.add_item') }}"
+         data-list-url="{{ url_for('shop_api.rename_list') }}"
+         data-search-url="{{ url_for('search.index') }}"
+         data-alternatives="{{ '1' if show_alternatives and not over else '0' }}">
+
+      {# A. Title (edit in place) and the count / date #}
+      <section class="card app-card mb-3"><div class="card-body d-flex align-items-center gap-3">
+        <span class="list-badge" aria-hidden="true"><i class="bi bi-clipboard-check"></i></span>
+        <div class="min-w-0 flex-grow-1">
+          <div class="d-flex align-items-center gap-1">
+            <h2 class="h5 fw-bold mb-0 text-break" id="list-title">{{ shopping_list.Title }}</h2>
+            <input class="form-control form-control-sm fw-bold" id="list-title-input" maxlength="100" hidden aria-label="Shopping list title">
+            <button class="icon-btn icon-btn-sm" type="button" id="list-title-edit" aria-label="Edit the list title"><i class="bi bi-pencil"></i></button>
+          </div>
+          <div class="small text-danger" id="list-title-error" role="alert"></div>
+          <div class="small text-muted-ink"><span id="list-count">{{ items|length }} item{{ '' if items|length == 1 else 's' }}</span> • Created {{ shopping_list.DateCreated|sast_date }}</div>
+        </div>
+      </div></section>
+
+      <div id="list-body" aria-live="polite">{% include "shopping/_body.html" %}</div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}{% if budget %}<script src="{{ url_for('static', filename='js/list.js') }}"></script>{% endif %}{% endblock %}

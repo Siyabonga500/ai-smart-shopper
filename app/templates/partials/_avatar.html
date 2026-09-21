@@ -1,0 +1,12 @@
+{# Profile picture, or a coloured circle with the person's initials when they have none. #}
+{% macro avatar(user, size=96) %}
+  {% if user.ProfilePic %}
+    <img class="avatar" src="{{ url_for('static', filename=user.ProfilePic) }}" alt="Profile picture of {{ user.FullName }}"
+         width="{{ size }}" height="{{ size }}" style="width:{{ size }}px;height:{{ size }}px">
+  {% else %}
+    <span class="avatar avatar-initials" role="img" aria-label="No profile picture for {{ user.FullName }}"
+          style="width:{{ size }}px;height:{{ size }}px;font-size:{{ (size * 0.38)|round|int }}px">
+      {{- (user.FirstName[:1] ~ user.LastName[:1])|upper -}}
+    </span>
+  {% endif %}
+{% endmacro %}

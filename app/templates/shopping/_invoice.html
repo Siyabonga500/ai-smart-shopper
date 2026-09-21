@@ -1,0 +1,33 @@
+{# The invoice table: Item | Qty | Store | Price | Total, rows grouped by store, then the total.
+   Used by the Summary (Step 13) and by a finished trip in History (Step 14).
+   Needs:  invoice  (services/invoice.py Invoice);  optional: total_label #}
+{% from "partials/_ui.html" import price %}
+<div class="table-responsive">
+  <table class="data-table invoice">
+    <caption class="visually-hidden">Items to buy, grouped by store</caption>
+    <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col">Store</th><th scope="col" class="num">Price</th><th scope="col" class="num">Total</th></tr></thead>
+    {% for group in invoice.groups %}
+      <tbody class="invoice-group">
+        {% for row in group.rows %}
+          <tr>
+            <td class="text-break">
+              {% if row.image %}
+                <div class="d-flex align-items-center gap-2">
+                  <img src="{{ row.image }}" alt="{{ row.name }}" class="img-thumbnail rounded-2" style="width: 42px; height: 42px; object-fit: cover; background: #f8f9fa;">
+                  <span>{{ row.name }}</span>
+                </div>
+              {% else %}
+                {{ row.name }}
+              {% endif %}
+            </td>
+            <td class="num">{{ row.quantity }}</td>
+            <td>{{ group.store_name }}</td>
+            <td class="num">{{ price(row.unit_cost) }}</td>
+            <td class="num">{{ price(row.line_total) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    {% endfor %}
+    <tfoot><tr><td colspan="4">{{ total_label or 'Total Estimated Cost' }}</td><td class="num est-total-sm">{{ price(invoice.total) }}</td></tr></tfoot>
+  </table>
+</div>

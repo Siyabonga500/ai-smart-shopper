@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% from "admin/_pager.html" import pager, when %}
+{% block title %}Users - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-3">Users</h1>
+  <form class="card app-card mb-3" method="get" role="search" aria-label="Find users">
+    <div class="card-body row g-2 align-items-end">
+      <div class="col-12 col-md-5">
+        <label class="form-label small mb-1" for="q">Name, email, cellphone or ID</label>
+        <input class="form-control" id="q" name="q" value="{{ q }}" maxlength="100" placeholder="Search…" autocomplete="off">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1" for="status">Status</label>
+        <select class="form-select" id="status" name="status">
+          <option value="">Any</option>{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == status }}>{{ s|capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1" for="role">Role</label>
+        <select class="form-select" id="role" name="role">
+          <option value="">Any</option>{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == role }}>{{ r }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3 d-flex gap-2">
+        <button class="btn btn-brand flex-grow-1" type="submit"><i class="bi bi-search me-1"></i>Search</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.users') }}">Clear</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="card app-card"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 admin-table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col" class="d-none d-md-table-cell">Cellphone</th>
+        <th scope="col">Role</th><th scope="col">Status</th><th scope="col" class="d-none d-lg-table-cell">Joined</th><th scope="col" class="d-none d-lg-table-cell">Last sign-in</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+        {% for u in page.items %}
+          <tr>
+            <td><a class="fw-600 text-decoration-none" href="{{ url_for('admin.user_detail', user_id=u.UserId) }}">{{ u.FullName }}</a></td>
+            <td class="text-break">{{ u.Email }}</td>
+            <td class="d-none d-md-table-cell tabular">{{ u.CellphoneNumber or '—' }}</td>
+            <td>{% if u.IsAdmin %}<span class="badge text-bg-dark">Admin</span>{% else %}Student{% endif %}</td>
+            <td>{% if u.IsActive %}<span class="badge bg-success-subtle text-success-emphasis">Active</span>{% else %}<span class="badge bg-danger-subtle text-danger-emphasis">Deactivated</span>{% endif %}</td>
+            <td class="d-none d-lg-table-cell small">{{ when(u.CreatedOn) }}</td>
+            <td class="d-none d-lg-table-cell small">{{ when(u.LastLogin) }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.user_detail', user_id=u.UserId) }}">View</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="text-center text-muted-ink py-4">No users match{% if q or status or role %} these filters{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {{ pager(page, 'admin.users') }}
+{% endblock %}

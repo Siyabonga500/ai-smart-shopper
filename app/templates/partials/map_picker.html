@@ -1,0 +1,31 @@
+{# Address + Leaflet/OpenStreetMap picker (Step 4). Include it inside a <form> with:
+
+     {% with address_field=form.ResidentialAddress, lat_field=form.Latitude, lng_field=form.Longitude %}
+       {% include "partials/map_picker.html" %}
+     {% endwith %}
+
+   The page must set  {% set use_maps = true %}  and load static/js/map_picker.js.
+   The map opens on the saved pin, or on Durban. #}
+{% set _err = address_field.errors|length > 0 %}
+<div class="map-picker mb-3" data-map-picker>
+  <label class="form-label" for="{{ address_field.id }}">{{ address_field.label.text }}<span class="text-warning-strong" aria-hidden="true"> *</span></label>
+  <div class="input-group has-validation">
+    {{ address_field(class_="form-control" ~ (" is-invalid" if _err else ""), autocomplete="street-address",
+                     maxlength=300, placeholder="Street, suburb, e.g. 79 Mansfield Road, Berea") }}
+    <button class="btn btn-outline-brand" type="button" data-role="search">
+      <i class="bi bi-search"></i><span class="d-none d-sm-inline ms-1">Find on map</span>
+    </button>
+    <button class="btn btn-outline-brand" type="button" data-role="locate" title="Use my current location" aria-label="Use my current location">
+      <i class="bi bi-crosshair"></i>
+    </button>
+    <div class="invalid-feedback" data-error-for="{{ address_field.name }}">{{ address_field.errors[0] if _err }}</div>
+  </div>
+  <div class="form-text" data-role="status" aria-live="polite">
+    Type your address and press <em>Find on map</em>, click the map, or use your current location.
+  </div>
+  <ul class="list-group map-results d-none mt-2" data-role="results" aria-label="Matching places"></ul>
+  <div class="map-canvas rounded-3 mt-2" data-role="map" role="application"
+       aria-label="Map of Durban. Click to set your address."></div>
+  {{ lat_field() }}
+  {{ lng_field() }}
+</div>
