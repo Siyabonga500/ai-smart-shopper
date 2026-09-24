@@ -10,7 +10,11 @@
     GET   /admin/integrations                  data sources: activate, API keys, Sync now
     POST  /admin/integrations/<source>/activate | key | key/delete | sync
     GET   /admin/integrations/logs             ?service=&outcome=&day=    the API call log
-    GET   /admin/stores                        ?q=&brand=&page=   POST /admin/stores/new, /<id>/edit, /<id>/delete
+    GET   /admin/stores                        ?q=&brand=&type=&page=   POST /admin/stores/new, /<id>/edit, /<id>/delete
+    POST  /admin/stores/seed                   add the known Durban supermarket and clothing branches that are missing
+    GET/POST /admin/users/new                  add an account (student or admin)
+    GET   /admin/products                      ?q=&category=&store=&page=   products added by hand
+    GET/POST /admin/products/new | /<id>/edit  POST /admin/products/<id>/delete
     GET   /admin/audit                         ?action=&admin=&target=&start=&end=&page=
 
 Access: signed in AND ``User.IsAdmin`` (and not deactivated). The check is one ``before_request`` for the whole
@@ -24,10 +28,12 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask_login import current_user, login_user
 
 from app.extensions import db, login_manager
-from app.forms.admin import AdminUserForm, ApiKeyForm, CategoryMappingForm, StoreForm
-from app.models import Store
+from app.forms.admin import AdminNewUserForm, AdminUserForm, ApiKeyForm, CategoryMappingForm, ProductForm, StoreForm
+from app.models import CatalogueProduct, Store
 from app.models.admin import MAPPED_CATEGORIES
-from app.services import admin_stats, admin_stores, admin_users, audit, category_map, integrations
+from app.models.catalogue import PRODUCT_CATEGORIES
+from app.services import admin_stats, admin_stores, admin_users, audit, catalogue, category_map, integrations
+from app.services.photos import PhotoError, save_product_photo
 from app.utils.validators import clean_phone_digits
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -88,6 +94,14 @@ def safe_http_url(value):
     return value if isinstance(value, str) and value.lower().startswith(("http://", "https://")) else None
 
 
+@bp.app_template_filter("safe_image_url")
+def safe_image_url(value):
+    """A product picture that may go in ``src``: our own ``/static/`` files or an ``http(s)://`` address."""
+    if isinstance(value, str) and value.startswith("/static/") and ".." not in value:
+        return value
+    return safe_http_url(value)
+
+
 # ------------------------------------------------------------------------------------------- dashboard
 @bp.get("/")
 def index():
@@ -111,6 +125,31 @@ def users():
         roles=admin_users.ROLES,
         statuses=admin_users.STATUSES,
     )
+
+
+@bp.route("/users/new", methods=["GET", "POST"])
+def user_new():
+    form = AdminNewUserForm()
+    if request.method == "POST" and form.validate_on_submit():
+        try:
+            user = admin_users.create(
+                first_name=form.FirstName.data,
+                last_name=form.LastName.data,
+                email=form.Email.data,
+                cellphone=clean_phone_digits(form.CellphoneNumber.data) if form.CellphoneNumber.data else None,
+                password=form.Password.data,
+                role=form.Role.data,
+            )
+        except admin_users.AdminUserError as exc:
+            db.session.rollback()
+            form.Email.errors = [str(exc)]
+        else:
+            db.session.flush()
+            audit.record(me(), "user.create", f"user:{user.UserId}", {"email": user.Email, "role": form.Role.data})
+            db.session.commit()
+            _done(f"Added {user.FullName}. They can sign in with the password you chose.")
+            return redirect(url_for("admin.user_detail", user_id=user.UserId))
+    return render_template("admin/user_new.html", form=form), 400 if request.method == "POST" else 200
 
 
 def _user_or_404(user_id: str):
@@ -389,10 +428,30 @@ def api_logs():
 @bp.get("/stores")
 def stores():
     brand = request.args.get("brand") or None
-    page = admin_stores.search(request.args.get("q"), brand, request.args.get("page"))
+    store_type = _choice(request.args.get("type"), ("grocery", "clothing", "both"))
+    page = admin_stores.search(request.args.get("q"), brand, request.args.get("page"), store_type=store_type)
     return render_template(
-        "admin/stores.html", page=page, q=request.args.get("q", ""), brand=brand or "", brands=admin_stores.brands()
+        "admin/stores.html",
+        page=page,
+        q=request.args.get("q", ""),
+        brand=brand or "",
+        store_type=store_type or "",
+        brands=admin_stores.brands(),
+        missing=admin_stores.missing_seeds(),
     )
+
+
+@bp.post("/stores/seed")
+def stores_seed():
+    added = admin_stores.add_known_stores()
+    audit.record(me(), "store.seed", "stores", {"added": added})
+    db.session.commit()
+    _done(
+        f"Added {added} Durban store{'' if added == 1 else 's'}."
+        if added
+        else "Every known Durban store is already listed."
+    )
+    return redirect(url_for("admin.product_new") if request.form.get("back") == "product" else url_for("admin.stores"))
 
 
 def _store_data(form) -> dict:
@@ -406,6 +465,7 @@ def _store_data(form) -> dict:
         "hours": form.OpeningHours.data,
         "phone": form.Phone.data,
         "location_source": form.LocationSource.data,
+        "store_type": form.StoreType.data,
     }
 
 
@@ -414,6 +474,7 @@ def store_new():
     form = StoreForm()
     if request.method == "GET":
         form.LocationSource.data = "official"
+        form.StoreType.data = "grocery"
     if request.method == "POST" and form.validate_on_submit():
         store = Store()
         admin_stores.apply(store, _store_data(form))
@@ -443,6 +504,7 @@ def store_edit(store_id):
                 "LocationSource": store.LocationSource,
                 "OpeningHours": store.OpeningHours,
                 "Phone": store.Phone,
+                "StoreType": store.StoreType,
             }
         )
     )
@@ -469,6 +531,159 @@ def store_delete(store_id):
     db.session.commit()
     _done(f"Deleted {store.Name}.")
     return redirect(url_for("admin.stores"))
+
+
+# -------------------------------------------------------------------------------------------- products
+@bp.get("/products")
+def products():
+    category = _choice(request.args.get("category"), PRODUCT_CATEGORIES)
+    store_id = request.args.get("store") or None
+    query = (request.args.get("q") or "").strip()[:100]
+    page = catalogue.search(query, category, store_id, request.args.get("page"))
+    return render_template(
+        "admin/products.html",
+        page=page,
+        q=query,
+        category=category or "",
+        store_id=store_id or "",
+        categories=PRODUCT_CATEGORIES,
+        counts=catalogue.counts(),
+        stores=catalogue.store_options(),
+    )
+
+
+def _save_photos(files) -> list[str]:
+    saved = []
+    for storage in files or []:
+        if storage and storage.filename:
+            saved.append(save_product_photo(storage))
+    return saved
+
+
+def _apply_product(product: CatalogueProduct, form: ProductForm) -> None:
+    """Copy the validated form onto ``product``, storing any uploaded pictures. Raises ``PhotoError``."""
+    limit = current_app.config["MAX_PRODUCT_PHOTOS"]
+    clothing = form.is_clothing
+    product.Category = form.Category.data
+    product.StoreId = form.StoreId.data
+    product.Name = form.Name.data
+    product.Brand = form.Brand.data
+    product.Price = form.Price.data
+    product.StockStatus = form.StockStatus.data
+    product.StockQuantity = form.StockQuantity.data
+    if clothing:
+        photos = form.photo_urls + _save_photos(form.Photos.data)
+        if not photos and product.Photos:
+            photos = list(product.Photos)  # editing without new photos keeps the old ones
+        if len(photos) > limit:
+            raise PhotoError(f"A product can have at most {limit} photos.")
+        product.Photos = photos or None
+        product.ImageUrl = photos[0] if photos else None
+        product.Sku, product.Size, product.Colour = form.Sku.data, form.Size.data, form.Colour.data
+        product.Barcode = form.Barcode.data
+        if form.StockQuantity.data == 0:
+            product.StockStatus = "out_of_stock"
+    else:
+        uploaded = _save_photos(form.ImageFile.data)
+        product.ImageUrl = (
+            uploaded[0] if uploaded else (form.ImageUrl.data or (product.ImageUrl if product.ProductId else None))
+        )
+        product.Photos = None
+        product.Barcode = form.Barcode.data
+        product.Sku = product.Size = product.Colour = None
+
+
+def _product_form_page(form, product, status=200):
+    return (
+        render_template(
+            "admin/product_form.html",
+            form=form,
+            product=product,
+            stores=catalogue.store_options(),
+            missing=admin_stores.missing_seeds(),
+        ),
+        status,
+    )
+
+
+@bp.route("/products/new", methods=["GET", "POST"])
+def product_new():
+    form = ProductForm(stores=catalogue.store_options())
+    if request.method == "GET":
+        form.Category.data = (
+            request.args.get("category") if request.args.get("category") in PRODUCT_CATEGORIES else "Grocery"
+        )
+        form.StockStatus.data = "in_stock"
+    if request.method == "POST" and form.validate_on_submit():
+        product = CatalogueProduct(CreatedBy=me().Email)
+        try:
+            _apply_product(product, form)
+        except PhotoError as exc:
+            db.session.rollback()
+            _fail(str(exc))
+            return _product_form_page(form, None, 400)
+        db.session.add(product)
+        db.session.flush()
+        audit.record(me(), "product.create", f"product:{product.ProductId}", catalogue.snapshot(product))
+        db.session.commit()
+        _done(f"Added {product.Name}. Students can find it in search now.")
+        return redirect(url_for("admin.products"))
+    return _product_form_page(form, None, 400 if request.method == "POST" else 200)
+
+
+@bp.route("/products/<product_id>/edit", methods=["GET", "POST"])
+def product_edit(product_id):
+    product = catalogue.get(product_id) or abort(404)
+    stores = catalogue.store_options()
+    if request.method == "GET":
+        form = ProductForm(
+            stores=stores,
+            data={
+                "Category": product.Category,
+                "StoreId": product.StoreId,
+                "Name": product.Name,
+                "Brand": product.Brand,
+                "Barcode": product.Barcode,
+                "Sku": product.Sku,
+                "Price": product.Price,
+                "ImageUrl": None if product.is_clothing else product.ImageUrl,
+                "PhotoUrls": "\n".join(p for p in (product.Photos or []) if p.startswith("http")),
+                "Size": product.Size,
+                "Colour": product.Colour,
+                "StockStatus": product.StockStatus,
+                "StockQuantity": product.StockQuantity,
+            },
+        )
+        return _product_form_page(form, product)
+    form = ProductForm(stores=stores)
+    if form.validate_on_submit():
+        before = catalogue.snapshot(product)
+        try:
+            _apply_product(product, form)
+        except PhotoError as exc:
+            db.session.rollback()
+            _fail(str(exc))
+            return _product_form_page(form, product, 400)
+        audit.record(
+            me(),
+            "product.update",
+            f"product:{product.ProductId}",
+            {"changes": audit.changes(before, catalogue.snapshot(product))},
+        )
+        db.session.commit()
+        _done(f"Saved {product.Name}.")
+        return redirect(url_for("admin.products"))
+    return _product_form_page(form, product, 400)
+
+
+@bp.post("/products/<product_id>/delete")
+def product_delete(product_id):
+    product = catalogue.get(product_id) or abort(404)
+    audit.record(me(), "product.delete", f"product:{product.ProductId}", catalogue.snapshot(product))
+    db.session.delete(product)
+    db.session.commit()
+    _done(f"Deleted {product.Name}.")
+    return redirect(url_for("admin.products"))
 
 
 # ------------------------------------------------------------------------------------------------ audit

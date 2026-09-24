@@ -115,6 +115,12 @@ class Product:
     retailer: str | None = None  # "Checkers", "Pick n Pay", ...
     store_id: str | None = None  # stores.Slug (mock) - what get_price_history() expects
     distance_km: float | None = None
+    # Admin > Products rows (clothing has a SKU, size and colour; stock can also be "low_stock"):
+    sku: str | None = None
+    size: str | None = None
+    colour: str | None = None
+    stock_status: str | None = None  # in_stock | low_stock | out_of_stock (None: only in_stock is known)
+    source: str | None = None  # "admin" for a product an admin added by hand
 
     def to_dict(self) -> dict:
         data = {name: getattr(self, name) for name in self.__dataclass_fields__}
@@ -1123,10 +1129,30 @@ class CachedProvider(RetailProvider):
 
     ``categories`` (optional) returns the admin's category mappings ``{key: (raw name, mapped category)}``; they are
     applied to every answer *after* the cache, so editing a mapping needs no cache clearing.
+
+    ``catalogue`` (optional) is :mod:`app.services.catalogue`: the products admins added by hand. They are read from
+    the database on every call (never cached) and put in front of the provider's answers.
     """
 
-    def __init__(self, inner: RetailProvider, ttl: int, categories=None):
+    def __init__(self, inner: RetailProvider, ttl: int, categories=None, catalogue=None):
         self.inner, self.ttl, self.name, self.categories = inner, ttl, inner.name, categories
+        self.catalogue = catalogue
+
+    def _own(self, lookup, *args) -> list[Product]:
+        if self.catalogue is None:
+            return []
+        return getattr(self.catalogue, lookup)(*args)
+
+    @staticmethod
+    def _with_own(own: list[Product], live):
+        """``own + live()``; when the live source fails, the admin products are still shown if there are any."""
+        try:
+            return own + live()
+        except (RetailAPIError, RetailConfigError, ExternalAPIError):
+            if own:
+                logger.warning("Retail provider failed; showing catalogue products only", exc_info=True)
+                return own
+            raise
 
     def _cached(self, method: str, args: tuple, compute):
         raw = json.dumps([self.inner.name, cache.get(RETAIL_CACHE_VERSION_KEY) or 0, method, *args], default=str)
@@ -1157,6 +1183,10 @@ class CachedProvider(RetailProvider):
         return self._cached("search", args, lambda: self.inner.search_products(query, lat, lng, radius_km, category))
 
     def search_products(self, query, lat, lng, radius_km=15, category=None):
+        own = self._own("matching", query, lat, lng, radius_km, category)
+        return self._with_own(own, lambda: self._search_live(query, lat, lng, radius_km, category))
+
+    def _search_live(self, query, lat, lng, radius_km, category):
         table = self._table()
         wanted = (category or "").strip().casefold()
         if not (wanted and any(mapped.casefold() == wanted for _, mapped in table.values())):
@@ -1178,12 +1208,19 @@ class CachedProvider(RetailProvider):
         return [p for p in self._apply(found, table) if (p.category or "").casefold() == wanted]
 
     def get_offers_by_barcode(self, barcode, lat=None, lng=None, radius_km=15):
-        offers = self._cached(
-            "offers",
-            (barcode, _round(lat), _round(lng), radius_km),
-            lambda: self.inner.get_offers_by_barcode(barcode, lat, lng, radius_km),
-        )
-        return self._apply(offers, self._table())
+        own = self._own("by_code", barcode, lat, lng, radius_km)
+
+        def live():
+            offers = self._cached(
+                "offers",
+                (barcode, _round(lat), _round(lng), radius_km),
+                lambda: self.inner.get_offers_by_barcode(barcode, lat, lng, radius_km),
+            )
+            return self._apply(offers, self._table())
+
+        if not own:
+            return live()
+        return sorted(self._with_own(own, live), key=lambda p: (p.price, p.store_name or ""))
 
     def get_stores_near(self, lat, lng, radius_km=15):
         return self._cached(
@@ -1224,7 +1261,7 @@ def get_retail_provider() -> RetailProvider:
     every ``RETAIL_SETTINGS_RECHECK_SECONDS`` (so every gunicorn worker notices a change), and the provider is only
     rebuilt when they actually differ.
     """
-    from app.services import category_map, integrations
+    from app.services import catalogue, category_map, integrations
 
     app = current_app._get_current_object()
     entry = app.extensions.get("retail_provider")
@@ -1241,7 +1278,7 @@ def get_retail_provider() -> RetailProvider:
         return entry[0]
     inner = build_provider(cfg)
     ttl = getattr(inner, "cache_ttl", None) or app.config["RETAIL_CACHE_TTL"]
-    provider = CachedProvider(inner, ttl, categories=category_map.table)
+    provider = CachedProvider(inner, ttl, categories=category_map.table, catalogue=catalogue)
     app.extensions["retail_provider"] = (provider, now, signature)
     return provider
 

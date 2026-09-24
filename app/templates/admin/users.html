@@ -3,7 +3,10 @@
 {% block title %}Users - Admin - {{ app_name }}{% endblock %}
 
 {% block content %}
-  <h1 class="h3 mb-3">Users</h1>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h3 mb-0">Users</h1>
+    <a class="btn btn-brand" href="{{ url_for('admin.user_new') }}"><i class="bi bi-person-plus me-1"></i>Add user</a>
+  </div>
   <form class="card app-card mb-3" method="get" role="search" aria-label="Find users">
     <div class="card-body row g-2 align-items-end">
       <div class="col-12 col-md-5">

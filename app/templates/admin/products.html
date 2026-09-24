@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% from "admin/_pager.html" import pager %}
+{% from "partials/_ui.html" import price %}
+{% block title %}Products - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Products</h1>
+      <p class="small text-muted-ink mb-0">Products you add here show up in student search next to the live LoyaltyHub prices.</p>
+    </div>
+    <a class="btn btn-brand" href="{{ url_for('admin.product_new') }}"><i class="bi bi-plus-lg me-1"></i>Add new product</a>
+  </div>
+
+  <div class="row g-2 mb-3">
+    {% for c in categories %}
+      <div class="col-4">
+        <a class="card app-card admin-stat h-100 text-decoration-none" href="{{ url_for('admin.products', category=c) }}">
+          <div class="card-body py-2">
+            <div class="small text-muted-ink">{{ c }}</div>
+            <div class="admin-stat-value tabular" data-stat="products-{{ c|lower }}">{{ counts.get(c, 0) }}</div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+
+  <form class="card app-card mb-3" method="get" role="search" aria-label="Find products"><div class="card-body row g-2 align-items-end">
+    <div class="col-12 col-md-4"><label class="form-label small mb-1" for="q">Name, brand, barcode or SKU</label>
+      <input class="form-control" id="q" name="q" value="{{ q }}" maxlength="100" placeholder="Search…" autocomplete="off"></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="category">Category</label>
+      <select class="form-select" id="category" name="category"><option value="">All</option>{% for c in categories %}<option {{ 'selected' if c == category }}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="col-6 col-md-3"><label class="form-label small mb-1" for="store">Store</label>
+      <select class="form-select" id="store" name="store"><option value="">All stores</option>{% for s in stores %}<option value="{{ s.id }}" {{ 'selected' if s.id == store_id }}>{{ s.name }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-3 d-flex gap-2"><button class="btn btn-brand flex-grow-1" type="submit">Search</button><a class="btn btn-outline-secondary" href="{{ url_for('admin.products') }}">Clear</a></div>
+  </div></form>
+
+  <div class="card app-card"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 admin-table">
+      <thead><tr>
+        <th scope="col">Product</th>
+        <th scope="col" class="d-none d-md-table-cell">Store</th>
+        <th scope="col" class="d-none d-lg-table-cell">Barcode / SKU</th>
+        <th scope="col" class="text-end">Price</th>
+        <th scope="col">Stock</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr></thead>
+      <tbody>
+        {% for p in page.items %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <img class="admin-thumb" src="{{ p.ImageUrl|safe_image_url or url_for('static', filename='img/product-placeholder.svg') }}" alt="" width="44" height="44" loading="lazy">
+                <div class="min-w-0">
+                  <div class="fw-600 text-break">{{ p.Name }}</div>
+                  <div class="small text-muted-ink">{{ p.Category }}{% if p.Brand %} · {{ p.Brand }}{% endif %}{% if p.is_clothing %} · {{ p.Size }} · {{ p.Colour }}{% endif %}</div>
+                  {% if p.ImageUrl %}<div class="small text-muted-ink text-truncate admin-url" title="{{ p.ImageUrl }}">{{ p.ImageUrl }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="d-none d-md-table-cell small"><div class="fw-600">{{ p.store.Name }}</div><div class="text-muted-ink">{{ p.store.Brand }}</div></td>
+            <td class="d-none d-lg-table-cell small tabular">{{ p.Barcode or '—' }}{% if p.Sku %}<div class="text-muted-ink">SKU {{ p.Sku }}</div>{% endif %}</td>
+            <td class="text-end tabular">{{ price(p.Price) }}</td>
+            <td><span class="badge {{ {'in_stock': 'text-bg-success', 'low_stock': 'text-bg-warning', 'out_of_stock': 'text-bg-danger'}.get(p.StockStatus, 'text-bg-light') }}">{{ p.stock_label }}</span>{% if p.StockQuantity is not none %}<div class="small text-muted-ink">{{ p.StockQuantity }} left</div>{% endif %}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.product_edit', product_id=p.ProductId) }}">Edit</a>
+              <form class="d-inline" method="post" action="{{ url_for('admin.product_delete', product_id=p.ProductId) }}" data-confirm="Delete {{ p.Name }}? Students will no longer find it.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="text-center text-muted-ink py-4">No products yet. <a href="{{ url_for('admin.product_new') }}">Add the first one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {{ pager(page, 'admin.products') }}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

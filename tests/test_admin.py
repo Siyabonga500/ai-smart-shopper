@@ -146,7 +146,14 @@ def test_dashboard_totals_and_charts(boss, student, log_file):
     log_file.write_text("\n".join([call(now - timedelta(days=3)), "not json", call(now), call(now, status=500)]) + "\n")
     html = boss.get("/admin/").get_data(as_text=True)
     stats = dict(re.findall(r'data-stat="([a-z\-]+)">([^<]+)<', html))
-    assert stats == {"users": "2", "active-budgets": "1", "active-lists": "1", "api-calls-today": "2"}
+    assert stats == {
+        "users": "2",
+        "active-budgets": "1",
+        "active-lists": "1",
+        "api-calls-today": "2",
+        "products": "0",
+        "stores": "0",
+    }
     charts = json.loads(html.split('id="admin-chart-data">')[1].split("</script>")[0])
     assert sum(charts["registrations"]["values"]) == 2 and len(charts["registrations"]["labels"]) == 8
     assert (

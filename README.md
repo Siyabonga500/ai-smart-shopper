@@ -39,7 +39,8 @@ pip install -r requirements-dev.txt  # runtime + tests + ruff/black
 
 cp .env.example .env                 # the defaults work for local development
 flask --app run db upgrade           # create the tables
-flask --app run seed-stores          # 16 Durban supermarket branches to start with
+flask --app run seed-stores          # 36 Durban branches: supermarkets and clothing shops
+flask --app run seed-admin           # the built-in admin account (see below)
 flask --app run seed-demo            # optional: three demo students (see below)
 python run.py                        # http://127.0.0.1:5000
 ```
@@ -49,7 +50,35 @@ search, comparison, lists and budgets all work offline with no API keys. **The m
 photos or real prices** (its barcodes are invented, so it shows a picture of the aisle instead). For real photos, prices
 and barcodes switch to [LoyaltyHub](#loyaltyhub-real-prices-barcodes-and-product-photos), which takes two minutes.
 
-To open the admin portal, give a student the admin role and sign in as them:
+### Admin account
+
+The admin signs in on the normal login page and lands on their own **Admin dashboard** (`/admin/`):
+
+| Email | Password |
+|---|---|
+| `siya1@gmail.com` | `Siyabonga@2` |
+
+`flask seed-admin` creates it (the Docker entrypoint does too), and it is also created the first time someone signs in
+with exactly these details. **Change it on a public site** by setting `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD`
+before the first start (or run `flask seed-admin` again after changing them).
+
+From the admin portal the admin can:
+
+- **Users**: search, add, edit, deactivate/reactivate and reset the password of any account.
+- **Products > Add new product**: pick the category first (**Grocery**, **Toiletries** or **Clothing**), then the store
+  from a drop-down of Durban branches with their addresses (the chosen store is shown on a map), then the details.
+  Grocery and Toiletries ask for name, barcode, price, image (URL or upload) and stock status. Clothing asks for name,
+  brand, SKU, size, colour, photos (URLs and/or uploads), price and stock. Clothing can only be added to clothing stores,
+  groceries only to supermarkets. Products added here appear in student search straight away, next to the LoyaltyHub
+  prices, and can be added to shopping lists.
+- **Stores**: 36 known Durban branches (Checkers, Pick n Pay, Shoprite, Woolworths, SPAR, Mr Price, PEP, Ackermans,
+  Edgars, Truworths, Jet). The newer ones use approximate positions at the shopping centre; `flask seed-stores --geocode`
+  refines them. "Add known Durban stores" on the Stores page loads any that are missing.
+
+Every finished trip in **Shopping History** has its own map: the route from the student's residence to each store on
+that shopping list and back, with what was bought at each stop (the trip page adds road distance and travel time).
+
+To give another student the admin role from the command line:
 
 ```bash
 flask --app run make-admin you@example.com      # add --remove to take it away again
@@ -100,6 +129,10 @@ None are needed to try the app. Add them when you want live prices or Microsoft 
 environment or pasted into **Admin > Integrations**, where they are stored encrypted and win over the environment.
 
 ### LoyaltyHub (real prices, barcodes and product photos)
+
+Every product shown to students carries its **name, price, barcode, retailer, image URL and stock status** (the
+product details window lists all six). LoyaltyHub is the grocery API used for this. The AZ Labs Grocery API was also
+considered, but it has no public documentation to build against, so it is not wired in.
 
 1. Sign up at <https://loyaltyhub.co.za/developers> and copy your API key from the dashboard. The free plan allows
    **100 calls a month and 20 a minute**; paid plans start at 50 000 calls a month.

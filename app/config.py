@@ -83,12 +83,19 @@ class BaseConfig:
     EMAIL_DNS_CHECK = _env_bool("EMAIL_DNS_CHECK")
 
     # --- Admin portal: access is the User.IsAdmin flag. Create the first admin with `flask make-admin <email>`.
+    # The built-in admin account (`flask seed-admin`, also created on its first sign-in if it does not exist yet).
+    # Set DEFAULT_ADMIN_PASSWORD in the environment of a public site: the default below is written in the README.
+    DEFAULT_ADMIN_EMAIL = (os.getenv("DEFAULT_ADMIN_EMAIL") or "siya1@gmail.com").strip().lower()
+    DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD") or "Siyabonga@2"
 
     # --- Uploads: PDF "Update Profile Picture" view: JPG, PNG or WEBP, max 2MB
     MAX_UPLOAD_BYTES = 2 * 1024 * 1024  # the photo itself: 2MB
     MAX_CONTENT_LENGTH = MAX_UPLOAD_BYTES + 512 * 1024  # whole request, leaves room for form fields
     ALLOWED_IMAGE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp"})
     UPLOAD_FOLDER = str(BASE_DIR / "app" / "static" / "uploads")
+    # Admin > Products: clothing can have several photos, each up to MAX_UPLOAD_BYTES, in one request.
+    MAX_PRODUCT_PHOTOS = 6
+    ADMIN_PRODUCT_MAX_CONTENT_LENGTH = MAX_PRODUCT_PHOTOS * MAX_UPLOAD_BYTES + 512 * 1024
 
     # --- Passwords / identity ------------------------------------------------
     BCRYPT_LOG_ROUNDS = _env_int("BCRYPT_LOG_ROUNDS", 12)

@@ -5,14 +5,24 @@
 {% block content %}
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <h1 class="h3 mb-0">Stores</h1>
-    <a class="btn btn-brand" href="{{ url_for('admin.store_new') }}"><i class="bi bi-plus-lg me-1"></i>Add a store</a>
+    <div class="d-flex flex-wrap gap-2">
+      {% if missing %}
+        <form method="post" action="{{ url_for('admin.stores_seed') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-brand" type="submit"><i class="bi bi-cloud-download me-1"></i>Add {{ missing }} known Durban store{{ '' if missing == 1 else 's' }}</button>
+        </form>
+      {% endif %}
+      <a class="btn btn-brand" href="{{ url_for('admin.store_new') }}"><i class="bi bi-plus-lg me-1"></i>Add a store</a>
+    </div>
   </div>
   <form class="card app-card mb-3" method="get" role="search" aria-label="Find stores"><div class="card-body row g-2 align-items-end">
-    <div class="col-12 col-md-6"><label class="form-label small mb-1" for="q">Name, suburb or address</label>
+    <div class="col-12 col-md-4"><label class="form-label small mb-1" for="q">Name, suburb or address</label>
       <input class="form-control" id="q" name="q" value="{{ q }}" maxlength="100" placeholder="Search…" autocomplete="off"></div>
     <div class="col-6 col-md-3"><label class="form-label small mb-1" for="brand">Brand</label>
       <select class="form-select" id="brand" name="brand"><option value="">All brands</option>{% for b in brands %}<option {{ 'selected' if b == brand }}>{{ b }}</option>{% endfor %}</select></div>
-    <div class="col-6 col-md-3 d-flex gap-2"><button class="btn btn-brand flex-grow-1" type="submit">Search</button><a class="btn btn-outline-secondary" href="{{ url_for('admin.stores') }}">Clear</a></div>
+    <div class="col-6 col-md-2"><label class="form-label small mb-1" for="type">Sells</label>
+      <select class="form-select" id="type" name="type"><option value="">Anything</option>{% for value, label in [('grocery', 'Groceries'), ('clothing', 'Clothing'), ('both', 'Both')] %}<option value="{{ value }}" {{ 'selected' if value == store_type }}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-3 d-flex gap-2"><button class="btn btn-brand flex-grow-1" type="submit">Search</button><a class="btn btn-outline-secondary" href="{{ url_for('admin.stores') }}">Clear</a></div>
   </div></form>
 
   <div class="card app-card"><div class="table-responsive">
@@ -21,7 +31,7 @@
       <tbody>
         {% for s in page.items %}
           <tr>
-            <td><div class="fw-600">{{ s.Name }}</div><div class="small text-muted-ink">{{ s.Brand }}{% if s.Suburb %} · {{ s.Suburb }}{% endif %}</div></td>
+            <td><div class="fw-600">{{ s.Name }}</div><div class="small text-muted-ink">{{ s.Brand }}{% if s.Suburb %} · {{ s.Suburb }}{% endif %} · <span class="badge text-bg-light">{{ {'grocery': 'Groceries', 'clothing': 'Clothing', 'both': 'Groceries + clothing'}.get(s.StoreType, s.StoreType) }}</span></div></td>
             <td class="d-none d-md-table-cell small">{{ s.Address }}</td>
             <td class="d-none d-lg-table-cell small tabular">{{ '%.4f'|format(s.Latitude) }}, {{ '%.4f'|format(s.Longitude) }}<div class="text-muted-ink">{{ s.LocationSource }}</div></td>
             <td class="d-none d-lg-table-cell small">{{ s.OpeningHours or '—' }}</td>

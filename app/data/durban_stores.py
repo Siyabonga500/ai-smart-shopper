@@ -1,4 +1,4 @@
-"""Durban supermarket branches for ``flask seed-stores`` (Step 7).
+"""Durban supermarket and clothing branches for ``flask seed-stores`` (Step 7).
 
 Only branches that could be confirmed from the retailers' own store pages are listed. The brief asked for
 more suburbs than could be verified (see :data:`REQUESTED_BRANCHES` and :func:`unconfirmed_requests`);
@@ -39,6 +39,7 @@ class StoreSeed:
     hours: str | None = None  # OSM opening_hours syntax when known
     link: str | None = None
     covers: tuple[str, ...] = ()  # which requested area(s) this branch satisfies
+    kind: str = "grocery"  # grocery | clothing | both (see app.models.store.STORE_TYPES)
 
 
 DURBAN_STORES: tuple[StoreSeed, ...] = (
@@ -191,6 +192,7 @@ DURBAN_STORES: tuple[StoreSeed, ...] = (
         phone="031 566 9300",
         hours="Mo 08:30-18:00; Tu-Th 08:30-19:00; Fr-Sa 08:00-21:00; Su 09:00-18:00",
         link=WOOLWORTHS_FINDER,
+        kind="both",
         covers=("Gateway",),
     ),
     StoreSeed(
@@ -202,6 +204,7 @@ DURBAN_STORES: tuple[StoreSeed, ...] = (
         -29.7268,
         31.0762,
         link=WOOLWORTHS_FINDER,
+        kind="both",
         covers=("Umhlanga",),
     ),
     # Nearest Woolworths to Florida Road (Morningside): a different street, about 1 km away.
@@ -214,6 +217,7 @@ DURBAN_STORES: tuple[StoreSeed, ...] = (
         -29.8265,
         31.0140,
         link=WOOLWORTHS_FINDER,
+        kind="both",
         covers=("Florida Rd",),
     ),
     # ---- SPAR ------------------------------------------------------------------------------------------------
@@ -231,7 +235,220 @@ DURBAN_STORES: tuple[StoreSeed, ...] = (
         link="https://www.spar.co.za/home/store-view/superspar-glenwood-kwazulu-natal",
         covers=("Glenwood",),
     ),
+    # ---- More branches at the big Durban shopping centres (approximate anchors at the centre) ------------
+    StoreSeed(
+        "checkers-musgrave",
+        "Checkers Musgrave Centre",
+        "Checkers",
+        "Berea",
+        "Musgrave Centre, 115 Musgrave Road, Berea, Durban, 4001",
+        -29.8467,
+        31.0012,
+        link=CHECKERS_FINDER,
+    ),
+    StoreSeed(
+        "pnp-pavilion",
+        "Pick n Pay Pavilion",
+        "Pick n Pay",
+        "Westville",
+        "The Pavilion Shopping Centre, Jack Martens Drive, Westville, 3629",
+        -29.8497,
+        30.9360,
+        link=PNP_FINDER,
+        covers=("Pavilion",),
+    ),
+    StoreSeed(
+        "pnp-la-lucia-mall",
+        "Pick n Pay La Lucia Mall",
+        "Pick n Pay",
+        "La Lucia",
+        "La Lucia Mall, 90 William Campbell Drive, La Lucia, 4051",
+        -29.7640,
+        31.0600,
+        link=PNP_FINDER,
+    ),
+    StoreSeed(
+        "shoprite-umlazi-mega-city",
+        "Shoprite Umlazi Mega City",
+        "Shoprite",
+        "Umlazi",
+        "Umlazi Mega City, Cnr Mangosuthu Highway & Griffiths Mxenge Highway, Umlazi, 4031",
+        -29.9690,
+        30.8840,
+        link=SHOPRITE_FINDER,
+    ),
+    StoreSeed(
+        "woolworths-pavilion",
+        "Woolworths Pavilion",
+        "Woolworths",
+        "Westville",
+        "The Pavilion Shopping Centre, Jack Martens Drive, Westville, 3629",
+        -29.8495,
+        30.9365,
+        link=WOOLWORTHS_FINDER,
+        kind="both",
+        covers=("Pavilion",),
+    ),
+    StoreSeed(
+        "woolworths-musgrave",
+        "Woolworths Musgrave Centre",
+        "Woolworths",
+        "Berea",
+        "Musgrave Centre, 115 Musgrave Road, Berea, Durban, 4001",
+        -29.8469,
+        31.0015,
+        link=WOOLWORTHS_FINDER,
+        kind="both",
+    ),
 )
+
+# Clothing retailers at the same shopping centres. Positions are approximate anchors at the centre; run
+# ``flask seed-stores --geocode`` to refine them.
+CLOTHING_STORES: tuple[StoreSeed, ...] = (
+    StoreSeed(
+        "mrprice-gateway",
+        "Mr Price Gateway",
+        "Mr Price",
+        "Umhlanga",
+        "Gateway Theatre of Shopping, 1 Palm Boulevard, Umhlanga Ridge, 4319",
+        -29.7272,
+        31.0688,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "mrprice-pavilion",
+        "Mr Price Pavilion",
+        "Mr Price",
+        "Westville",
+        "The Pavilion Shopping Centre, Jack Martens Drive, Westville, 3629",
+        -29.8499,
+        30.9358,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "mrprice-workshop",
+        "Mr Price The Workshop",
+        "Mr Price",
+        "Durban Central",
+        "The Workshop, 99 Samora Machel Street, Durban Central, 4001",
+        -29.8566,
+        31.0275,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "pep-west-street",
+        "PEP Durban West Street",
+        "PEP",
+        "Durban Central",
+        "Dr Pixley KaSeme (West) Street, Durban Central, 4001",
+        -29.8578,
+        31.0245,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "pep-umlazi-mega-city",
+        "PEP Umlazi Mega City",
+        "PEP",
+        "Umlazi",
+        "Umlazi Mega City, Mangosuthu Highway, Umlazi, 4031",
+        -29.9692,
+        30.8844,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "ackermans-pavilion",
+        "Ackermans Pavilion",
+        "Ackermans",
+        "Westville",
+        "The Pavilion Shopping Centre, Jack Martens Drive, Westville, 3629",
+        -29.8494,
+        30.9356,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "ackermans-chatsworth",
+        "Ackermans Chatsworth Centre",
+        "Ackermans",
+        "Chatsworth",
+        "Chatsworth Centre, Joyhurst Road, Chatsworth, 4092",
+        -29.9115,
+        30.887,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "edgars-gateway",
+        "Edgars Gateway",
+        "Edgars",
+        "Umhlanga",
+        "Gateway Theatre of Shopping, 1 Palm Boulevard, Umhlanga Ridge, 4319",
+        -29.7266,
+        31.0694,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "edgars-pavilion",
+        "Edgars Pavilion",
+        "Edgars",
+        "Westville",
+        "The Pavilion Shopping Centre, Jack Martens Drive, Westville, 3629",
+        -29.8492,
+        30.9362,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "truworths-gateway",
+        "Truworths Gateway",
+        "Truworths",
+        "Umhlanga",
+        "Gateway Theatre of Shopping, 1 Palm Boulevard, Umhlanga Ridge, 4319",
+        -29.7269,
+        31.0685,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "truworths-musgrave",
+        "Truworths Musgrave Centre",
+        "Truworths",
+        "Berea",
+        "Musgrave Centre, 115 Musgrave Road, Berea, Durban, 4001",
+        -29.8465,
+        31.001,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "jet-workshop",
+        "Jet The Workshop",
+        "Jet",
+        "Durban Central",
+        "The Workshop, 99 Samora Machel Street, Durban Central, 4001",
+        -29.8564,
+        31.0278,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "mrprice-la-lucia",
+        "Mr Price La Lucia Mall",
+        "Mr Price",
+        "La Lucia",
+        "La Lucia Mall, 90 William Campbell Drive, La Lucia, 4051",
+        -29.7642,
+        31.0603,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "pep-chatsworth",
+        "PEP Chatsworth Centre",
+        "PEP",
+        "Chatsworth",
+        "Chatsworth Centre, Joyhurst Road, Chatsworth, 4092",
+        -29.9113,
+        30.8873,
+        kind="clothing",
+    ),
+)
+
+# Every branch the seeder knows about: supermarkets first, then the clothing shops.
+ALL_STORES: tuple[StoreSeed, ...] = DURBAN_STORES + CLOTHING_STORES
 
 # What the brief asked for, per brand.
 REQUESTED_BRANCHES: dict[str, tuple[str, ...]] = {

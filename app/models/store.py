@@ -16,6 +16,8 @@ from app.extensions import db
 from app.utils.ids import STORE_PREFIX, generate_id
 
 LOCATION_SOURCES = ("official", "geocoded", "approximate")
+# What a branch sells: supermarkets, clothing shops, or both (Woolworths, for example).
+STORE_TYPES = ("grocery", "clothing", "both")
 
 
 class Store(db.Model):
@@ -34,6 +36,15 @@ class Store(db.Model):
     OpeningHours = db.Column(db.String(255), nullable=True)
     StoreLink = db.Column(db.String(255), nullable=True)  # unused: students are never sent to a retailer's website
     DateCreated = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    StoreType = db.Column(db.String(20), nullable=False, default="grocery", server_default="grocery")
+
+    @property
+    def sells_clothing(self) -> bool:
+        return self.StoreType in ("clothing", "both")
+
+    @property
+    def sells_groceries(self) -> bool:
+        return self.StoreType in ("grocery", "both")
 
     def to_dict(self, distance_km: float | None = None) -> dict:
         data = {
@@ -47,6 +58,7 @@ class Store(db.Model):
             "location_source": self.LocationSource,
             "phone": self.Phone,
             "opening_hours": self.OpeningHours,
+            "store_type": self.StoreType,
         }
         if distance_km is not None:
             data["distance_km"] = round(distance_km, 2)

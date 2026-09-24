@@ -5,8 +5,14 @@
 
 {% block content %}
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <h1 class="h3 mb-0">Dashboard</h1>
-    <span class="text-muted-ink small">Data source: <strong>{{ data.active_source_label }}</strong></span>
+    <div>
+      <h1 class="h3 mb-0">Admin dashboard</h1>
+      <span class="text-muted-ink small">Signed in as {{ current_user.Email }} · Data source: <strong>{{ data.active_source_label }}</strong></span>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-brand" href="{{ url_for('admin.product_new') }}"><i class="bi bi-plus-lg me-1"></i>Add new product</a>
+      <a class="btn btn-outline-brand" href="{{ url_for('admin.user_new') }}"><i class="bi bi-person-plus me-1"></i>Add user</a>
+    </div>
   </div>
 
   <div class="row g-3 mb-4">
@@ -15,6 +21,8 @@
       ('Active budgets', data.totals.active_budgets, 'wallet2', 'one per student at most', url_for('admin.users')),
       ('Active lists', data.totals.active_lists, 'card-checklist', 'shopping lists in progress', url_for('admin.users')),
       ('API calls today', data.totals.api_calls_today, 'cloud-arrow-down', 'requests to retail APIs (SAST day)', url_for('admin.api_logs')),
+      ('Products', data.totals.products, 'box-seam', data.totals.clothing_products ~ ' clothing items', url_for('admin.products')),
+      ('Stores', data.totals.stores, 'shop', data.totals.clothing_stores ~ ' sell clothing', url_for('admin.stores')),
     ] %}
       <div class="col-6 col-lg-3">
         <a class="card app-card admin-stat h-100 text-decoration-none" href="{{ url }}">

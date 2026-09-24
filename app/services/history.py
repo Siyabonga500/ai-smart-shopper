@@ -177,6 +177,7 @@ def filter_options(user_id: str) -> dict[str, list[str]]:
 
     return {"stores": distinct(ListItem.StoreName), "categories": distinct(ListItem.Category)}
 
+
 def store_points(user_id: str) -> list[dict]:
     """Return unique store locations used in the student's purchased history."""
     rows = db.session.execute(
@@ -206,6 +207,37 @@ def store_points(user_id: str) -> list[dict]:
         }
         for name, address, lat, lng, count in rows
     ]
+
+
+def trip_map(trip: Trip, home: dict) -> dict:
+    """What the history maps draw for one trip, without any network call: the student's home, then the stores in
+    the order the route planner would visit them (see :mod:`app.services.routing`), each with what was bought there.
+
+    ``{"home": {lat, lng}, "stops": [{"order", "name", "address", "lat", "lng", "item_count", "total", "items"}],
+    "unlocated": [store names], "distance_km": straight-line estimate x road factor}``
+    """
+    from app.services import routing
+    from app.services.invoice import build_invoice
+
+    groups = build_invoice(trip.items).groups
+    stops, unlocated = routing.stops_from_groups(groups)
+    ordered = routing.order_stops(home, stops, return_home=True)
+    by_name = {group.store_name: group for group in groups}
+    payload_stops = []
+    for number, stop in enumerate(ordered, 1):
+        group = by_name.get(stop.name)
+        entry = stop.as_dict(number)
+        entry["total"] = str(group.subtotal) if group else "0.00"
+        entry["items"] = [f"{row['quantity']} x {row['name']}" for row in group.rows] if group else []
+        payload_stops.append(entry)
+    estimate = routing._estimate(routing._points(home, ordered, True)) if ordered else {"distance_km": 0.0}
+    return {
+        "id": trip.id,
+        "home": {"lat": home["lat"], "lng": home["lng"]},
+        "stops": payload_stops,
+        "unlocated": unlocated,
+        "distance_km": estimate["distance_km"],
+    }
 
 
 def group_by_month(trips: list[Trip]) -> list[tuple[str, list[Trip]]]:

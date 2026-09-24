@@ -84,6 +84,13 @@ def _init_extensions(app: Flask) -> None:
     migrate.init_app(app, db, render_as_batch=True)  # SQLite cannot ALTER columns without batch mode
     login_manager.init_app(app)
     bcrypt.init_app(app)
+
+    @app.before_request
+    def _allow_product_photos():
+        # Registered before CSRFProtect so the bigger limit is in place before the form is first read.
+        if request.path.startswith("/admin/products"):
+            request.max_content_length = app.config["ADMIN_PRODUCT_MAX_CONTENT_LENGTH"]
+
     csrf.init_app(app)
 
     cache_config = {

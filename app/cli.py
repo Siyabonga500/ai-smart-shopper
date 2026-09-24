@@ -4,6 +4,7 @@ flask seed-stores [--geocode] [--dry-run] [--file extra_stores.json]
 flask retail-search "full cream milk" [--lat --lng --radius --category]
 flask healthcheck          # JSON health report; exit code 1 when the database is down
 flask seed-demo [--reset]  # 3 demo students with budgets, lists and six months of history (development only)
+flask seed-admin [--keep-password]  # the built-in admin account (DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD)
 """
 
 import json
@@ -12,7 +13,7 @@ from pathlib import Path
 import click
 from sqlalchemy import select
 
-from app.data.durban_stores import DURBAN_STORES, FINDERS, StoreSeed, unconfirmed_requests
+from app.data.durban_stores import ALL_STORES, DURBAN_STORES, FINDERS, StoreSeed, unconfirmed_requests
 from app.extensions import db
 from app.models import Store
 from app.utils.geo import distance_km
@@ -24,7 +25,7 @@ _MAX_GEOCODE_DRIFT_KM = 5.0  # a lookup further than this from our anchor is pro
 
 def _seeds_from_file(path: str) -> list[StoreSeed]:
     """JSON list of objects with: slug, name, brand, suburb, address, lat, lng and optional
-    source, phone, hours, link."""
+    source, phone, hours, link and kind (grocery, clothing or both)."""
     rows = json.loads(Path(path).read_text(encoding="utf-8"))
     seeds = []
     for row in rows:
@@ -42,6 +43,7 @@ def _seeds_from_file(path: str) -> list[StoreSeed]:
                     phone=row.get("phone"),
                     hours=row.get("hours"),
                     link=row.get("link"),
+                    kind=row.get("kind", "grocery"),
                 )
             )
         except (KeyError, TypeError, ValueError) as exc:
@@ -62,6 +64,7 @@ def upsert_stores(seeds) -> tuple[int, int]:
             updated += 1
         store.Name, store.Brand, store.Suburb, store.Address = seed.name, seed.brand, seed.suburb, seed.address
         store.Phone, store.OpeningHours = seed.phone, seed.hours
+        store.StoreType = seed.kind
         if store.Latitude is None or _RANK.get(seed.source, 1) >= _RANK.get(store.LocationSource or "approximate", 1):
             store.Latitude, store.Longitude, store.LocationSource = seed.lat, seed.lng, seed.source
     db.session.commit()
@@ -117,13 +120,18 @@ def register_cli(app) -> None:
         help="JSON file with extra branches to add or update.",
     )
     @click.option("--dry-run", is_flag=True, help="Show what would be seeded without touching the database.")
-    def seed_stores(do_geocode, extra_file, dry_run):
-        """Seed Durban supermarket branches (safe to run repeatedly)."""
-        seeds = list(DURBAN_STORES) + (_seeds_from_file(extra_file) if extra_file else [])
+    @click.option(
+        "--missing-only", is_flag=True, help="Only add branches that are not in the database (keeps admin edits)."
+    )
+    def seed_stores(do_geocode, extra_file, dry_run, missing_only):
+        """Seed Durban supermarket and clothing branches (safe to run repeatedly)."""
+        seeds = list(ALL_STORES) + (_seeds_from_file(extra_file) if extra_file else [])
         if dry_run:
             for seed in seeds:
-                click.echo(f"  {seed.name:<40} {seed.suburb:<16} {seed.source}")
+                click.echo(f"  {seed.name:<40} {seed.suburb:<16} {seed.kind:<9} {seed.source}")
             click.echo(f"{len(seeds)} stores would be seeded.")
+        elif missing_only:
+            click.echo(f"Stores: {add_missing_stores(seeds)} added ({len(seeds)} known).")
         else:
             created, updated = upsert_stores(seeds)
             click.echo(f"Stores: {created} added, {updated} updated ({len(seeds)} total).")
@@ -156,7 +164,7 @@ def register_cli(app) -> None:
                 "Refusing to create demo accounts with a public password on a production site. "
                 "Use --allow-production if you really mean it."
             )
-        add_missing_stores(DURBAN_STORES)  # the store filter, map and route need the branches; admin edits stay
+        add_missing_stores(ALL_STORES)  # the store filter, map and route need the branches; admin edits stay
         try:
             result = demo.seed_demo(reset=reset)
         except demo.DemoError as exc:
@@ -172,6 +180,17 @@ def register_cli(app) -> None:
             for user in result.created:
                 click.echo(f"  {user.Email:<28} {user.FirstName} {user.LastName}")
             click.echo("\nTo see the admin portal, run: flask make-admin thabo.demo@example.com")
+
+    @app.cli.command("seed-admin")
+    @click.option("--keep-password", is_flag=True, help="Do not reset the password of an existing account.")
+    def seed_admin(keep_password):
+        """Create the built-in admin account (DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD), or make it an admin again."""
+        from app.services.admin_users import ensure_default_admin
+
+        email, password = app.config["DEFAULT_ADMIN_EMAIL"], app.config["DEFAULT_ADMIN_PASSWORD"]
+        user, created = ensure_default_admin(email, password, reset_password=not keep_password)
+        db.session.commit()
+        click.echo(f"{'Created' if created else 'Updated'} the admin account {user.Email}. Sign in at /login.")
 
     @app.cli.command("healthcheck")
     def healthcheck():

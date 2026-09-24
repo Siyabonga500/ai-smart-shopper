@@ -11,6 +11,7 @@ and terms. The Microsoft profile is parked in the session and the student lands 
 ``/register`` with their name and email pre-filled.
 """
 
+import hmac
 import os
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
@@ -42,7 +43,27 @@ def _safe_next(target: str | None) -> str | None:
 
 
 def _after_login_url(target: str | None = None) -> str:
-    return _safe_next(target) or url_for("dashboard.index")
+    """Where to go after signing in: the page asked for, else the admin's own dashboard, else the student's."""
+    if _safe_next(target):
+        return target
+    if current_user.is_authenticated and current_user.is_admin:
+        return url_for("admin.index")
+    return url_for("dashboard.index")
+
+
+def _default_admin_on_first_sign_in(email: str, password: str):
+    """Create the built-in admin (``DEFAULT_ADMIN_EMAIL``) the first time someone signs in with its exact details."""
+    from app.services.admin_users import ensure_default_admin
+
+    cfg = current_app.config
+    admin_email, admin_password = cfg.get("DEFAULT_ADMIN_EMAIL"), cfg.get("DEFAULT_ADMIN_PASSWORD")
+    if not admin_email or not admin_password or email != admin_email:
+        return None
+    if not hmac.compare_digest(password.encode(), admin_password.encode()):
+        return None
+    user, _ = ensure_default_admin(admin_email, admin_password)
+    db.session.commit()
+    return user
 
 
 def _spend_time_like_a_real_check(password: str) -> None:
@@ -119,6 +140,8 @@ def login():
             return render_template("auth/login.html", form=form, next_url=next_url, **_login_context()), 429
 
         user = db.session.scalar(select(User).where(func.lower(User.Email) == email))
+        if user is None:
+            user = _default_admin_on_first_sign_in(email, form.Password.data)
         if user is not None and user.check_password(form.Password.data):
             login_limiter.reset(keys[1])
             if not user.IsActive:  # only said after the right password, so it reveals nothing to a stranger

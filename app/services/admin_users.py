@@ -155,3 +155,44 @@ def reset_password(user: User) -> str:
     password = temporary_password()
     user.set_password(password)
     return password
+
+
+def find_by_email(email: str) -> User | None:
+    return db.session.scalar(select(User).where(func.lower(User.Email) == (email or "").strip().lower()))
+
+
+def create(*, first_name: str, last_name: str, email: str, cellphone: str | None, password: str, role: str) -> User:
+    """A new account made by an admin (Admin > Users > Add user). It can sign in at once with ``password``."""
+    if role not in ROLES:
+        raise AdminUserError("Choose a role: Student or Admin.")
+    if find_by_email(email) is not None:
+        raise AdminUserError("An account with that email address already exists.")
+    user = User(
+        FirstName=first_name,
+        LastName=last_name,
+        Email=email.strip().lower(),
+        CellphoneNumber=cellphone or None,
+        IsAdmin=role == "Admin",
+        IsActive=True,
+    )
+    user.set_password(password)
+    db.session.add(user)
+    return user
+
+
+def ensure_default_admin(email: str, password: str, *, reset_password: bool = False) -> tuple[User, bool]:
+    """The built-in admin account (``DEFAULT_ADMIN_EMAIL``). Returns ``(user, created)``; the caller commits.
+
+    An existing account with that address is made an active admin; its password is only replaced when
+    ``reset_password`` is set (``flask seed-admin`` does that, the first sign-in does not).
+    """
+    user = find_by_email(email)
+    if user is None:
+        user = User(FirstName="Siyabonga", LastName="Admin", Email=email.strip().lower(), IsAdmin=True, IsActive=True)
+        user.set_password(password)
+        db.session.add(user)
+        return user, True
+    user.IsAdmin, user.IsActive = True, True
+    if reset_password or not user.has_password:
+        user.set_password(password)
+    return user, False

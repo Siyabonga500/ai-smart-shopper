@@ -177,6 +177,15 @@
     return button;
   }
 
+  var STOCK_TEXT = { in_stock: "In stock", low_stock: "Low stock", out_of_stock: "Out of stock" };
+  function stockText(card) {
+    return STOCK_TEXT[card.stock_status] || (card.in_stock ? "In stock" : "Out of stock");
+  }
+  function stockClass(card) {
+    if (!card.in_stock) return "out-of-stock";
+    return card.stock_status === "low_stock" ? "low-stock" : "in-stock";
+  }
+
   function cardEl(card, compact) {
     var article = h("article", { "class": "product-card" + (compact ? " compact" : "") + (card.in_stock ? "" : " out"), "data-key": card.key });
     var thumb = thumbEl(card);
@@ -192,9 +201,9 @@
     var meta = h("div", { "class": "product-meta" }, [
       h("span", { "class": "text-truncate", text: card.store_name || card.retailer || "Live retailer" }),
       card.distance_km != null ? h("span", { "class": "flex-shrink-0", text: "· " + km(card.distance_km) }) : null,
-      h("span", { "class": "product-stock " + (card.in_stock ? "in-stock" : "out-of-stock"), text: card.in_stock ? "In stock" : "Out of stock" })
+      h("span", { "class": "product-stock " + stockClass(card), text: stockText(card) })
     ]);
-    var source = h("div", { "class": "product-source", text: card.brand ? card.brand + (card.barcode ? " · " + card.barcode : "") : (card.barcode || "Live price") });
+    var source = h("div", { "class": "product-source", text: [card.retailer, card.brand, card.barcode ? "Barcode " + card.barcode : ""].filter(Boolean).join(" · ") || "Live price" });
     var why = (card.reasons && card.reasons.length) ? h("div", { "class": "product-why", text: card.reasons[0], title: card.reasons.join(". ") }) : null;
     var priceRow = h("div", { "class": "product-price-row" }, [App.priceEl(card.price, "product-price"), inListPill(card.in_list_qty || 0)]);
     var actions = h("div", { "class": "product-actions" }, [
@@ -359,14 +368,23 @@
     return value ? [h("dt", { text: label }), h("dd", { text: value })] : [];
   }
 
+  function imageFact(url) {
+    var safe = App.safeUrl(url);
+    if (!safe) return [];
+    return [h("dt", { text: "Image URL" }), h("dd", { "class": "text-break" }, [
+      h("a", { href: safe, target: "_blank", rel: "noopener noreferrer", text: safe })
+    ])];
+  }
+
   function renderProduct(data) {
     var p = data.product;
     var body = $("product-modal-body");
     var facts = [].concat(
       fact("Store", p.store_name), fact("Address", p.store_address),
       fact("Distance", p.distance_km != null ? km(p.distance_km) + " from you" : ""),
-      fact("Barcode", p.barcode), fact("Category", p.category), fact("Brand", p.brand),
-      fact("Stock", p.in_stock ? "In stock" : "Out of stock"));
+      fact("Retailer", p.retailer), fact("Barcode", p.barcode), fact("SKU", p.sku !== p.barcode ? p.sku : ""),
+      fact("Category", p.category), fact("Brand", p.brand), fact("Size", p.size), fact("Colour", p.colour),
+      fact("Stock", stockText(p)), imageFact(p.image_url));
 
     var main = h("div", { "class": "row g-3", "data-key": p.key }, [
       h("div", { "class": "col-md-5" }, [thumbEl(p, "product-hero")]),

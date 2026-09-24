@@ -1,0 +1,101 @@
+{% extends "admin/base.html" %}
+{% set use_maps = true %}
+{% from "partials/_form_macros.html" import control, select %}
+{% block title %}{{ 'Edit ' ~ product.Name if product else 'Add a product' }} - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.products') }}">Products</a></li><li class="breadcrumb-item active" aria-current="page">{{ 'Edit' if product else 'Add' }}</li></ol></nav>
+  <h1 class="h3 mb-3">{{ 'Edit ' ~ product.Name if product else 'Add a new product' }}</h1>
+
+  {% if missing and not stores %}
+    <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <span>There are no stores yet. Load the Durban supermarkets and clothing shops first.</span>
+      <form method="post" action="{{ url_for('admin.stores_seed') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="product">
+        <button class="btn btn-sm btn-brand" type="submit">Add {{ missing }} Durban stores</button>
+      </form>
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="admin-form" id="product-form" novalidate>
+    {{ form.hidden_tag() }}
+    <script type="application/json" id="product-stores">{{ stores|tojson }}</script>
+
+    {# 1. Category #}
+    <section class="card app-card mb-3" aria-labelledby="step-category"><div class="card-body">
+      <h2 class="h6 fw-bold mb-3" id="step-category"><span class="step-no">1</span> Category</h2>
+      <div class="d-flex flex-wrap gap-2" role="radiogroup" aria-labelledby="step-category">
+        {% for value, label in form.Category.choices %}
+          <input type="radio" class="btn-check" name="{{ form.Category.name }}" id="cat-{{ value|lower }}" value="{{ value }}" autocomplete="off" {{ 'checked' if form.Category.data == value }}>
+          <label class="btn btn-outline-brand" for="cat-{{ value|lower }}"><i class="bi bi-{{ {'Grocery': 'basket', 'Toiletries': 'droplet', 'Clothing': 'bag'}[value] }} me-1"></i>{{ label }}</label>
+        {% endfor %}
+      </div>
+      {% if form.Category.errors %}<div class="text-danger small mt-2">{{ form.Category.errors[0] }}</div>{% endif %}
+    </div></section>
+
+    {# 2. Store, with its address on the map #}
+    <section class="card app-card mb-3" aria-labelledby="step-store"><div class="card-body">
+      <h2 class="h6 fw-bold mb-3" id="step-store"><span class="step-no">2</span> Store</h2>
+      <div class="row g-3">
+        <div class="col-lg-5">
+          {{ select(form.StoreId, hint="Only stores that sell this category are listed.") }}
+          <div class="store-card small" id="store-details" hidden>
+            <div class="fw-600" data-store="name"></div>
+            <div class="text-muted-ink" data-store="brand"></div>
+            <div data-store="address"></div>
+          </div>
+          <p class="small text-muted-ink mt-2 mb-0"><a href="{{ url_for('admin.store_new') }}">Store not listed? Add it</a></p>
+        </div>
+        <div class="col-lg-7">
+          <div class="product-store-map" id="product-store-map" role="application" aria-label="Map of the chosen store in Durban"></div>
+        </div>
+      </div>
+    </div></section>
+
+    {# 3. Product details #}
+    <section class="card app-card mb-3" aria-labelledby="step-details"><div class="card-body">
+      <h2 class="h6 fw-bold mb-3" id="step-details"><span class="step-no">3</span> Product details</h2>
+      <div class="row">
+        <div class="col-md-6">{{ control(form.Name, maxlength=150, placeholder="Clover Full Cream Milk 2L") }}</div>
+        <div class="col-md-6" data-show-for="Clothing Grocery Toiletries">{{ control(form.Brand, maxlength=80, placeholder="Clover") }}</div>
+
+        {# Grocery and toiletries #}
+        <div class="col-md-6" data-show-for="Grocery Toiletries">{{ control(form.Barcode, inputmode="numeric", maxlength=14, placeholder="6001299001234", hint="8 to 14 digits (EAN / GTIN).") }}</div>
+
+        {# Clothing #}
+        <div class="col-md-6" data-show-for="Clothing">{{ control(form.Sku, maxlength=50, placeholder="MRP-TSH-0012") }}</div>
+        <div class="col-md-3" data-show-for="Clothing">{{ control(form.Size, maxlength=30, list="size-list", placeholder="M") }}</div>
+        <div class="col-md-3" data-show-for="Clothing">{{ control(form.Colour, maxlength=40, placeholder="Black") }}</div>
+        <datalist id="size-list">{% for s in ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '28', '30', '32', '34', '36', '6', '7', '8', '9', '10', 'One size'] %}<option value="{{ s }}">{% endfor %}</datalist>
+
+        <div class="col-md-4">{{ control(form.Price, type="text", inputmode="decimal", placeholder="24.99") }}</div>
+        <div class="col-md-4">{{ select(form.StockStatus) }}</div>
+        <div class="col-md-4">{{ control(form.StockQuantity, type="number", min=0, hint="Required for clothing. 0 marks it out of stock.") }}</div>
+
+        {# One image for grocery and toiletries #}
+        <div class="col-md-8" data-show-for="Grocery Toiletries">{{ control(form.ImageUrl, type="url", maxlength=1000, placeholder="https://…/product.jpg", hint="A LoyaltyHub image URL works, or any https:// picture.") }}</div>
+        <div class="col-md-4" data-show-for="Grocery Toiletries">{{ control(form.ImageFile, accept="image/jpeg,image/png,image/webp", hint="JPG, PNG or WEBP up to 2MB.") }}</div>
+
+        {# Several photos for clothing #}
+        <div class="col-md-8" data-show-for="Clothing">{{ control(form.PhotoUrls, rows=3, placeholder="One https:// address per line") }}</div>
+        <div class="col-md-4" data-show-for="Clothing">{{ control(form.Photos, multiple=True, accept="image/jpeg,image/png,image/webp", hint="Up to " ~ config.MAX_PRODUCT_PHOTOS ~ " photos, 2MB each.") }}</div>
+      </div>
+
+      {% if product and product.photos %}
+        <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Current pictures">
+          {% for url in product.photos %}<img class="admin-thumb lg" src="{{ url|safe_image_url }}" alt="Current picture {{ loop.index }}" width="72" height="72" loading="lazy">{% endfor %}
+          <span class="small text-muted-ink align-self-center">Leave the picture fields empty to keep these.</span>
+        </div>
+      {% endif %}
+
+      <div class="d-flex gap-2 justify-content-end">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.products') }}">Cancel</a>
+        <button class="btn btn-brand" type="submit">{{ 'Save changes' if product else 'Add product' }}</button>
+      </div>
+    </div></section>
+  </form>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin_products.js') }}"></script>
+{% endblock %}

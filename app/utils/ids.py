@@ -26,6 +26,7 @@ STORE_PREFIX = "STR"
 NOTIFICATION_PREFIX = "NTF"
 MAPPING_PREFIX = "CMP"
 AUDIT_PREFIX = "AUD"
+PRODUCT_PREFIX = "PRD"
 
 
 def generate_id(prefix: str) -> str:

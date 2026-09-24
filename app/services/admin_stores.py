@@ -42,7 +42,45 @@ def brands() -> list[str]:
     return list(db.session.scalars(select(Store.Brand).distinct().order_by(Store.Brand)))
 
 
-def search(query: str | None = None, brand: str | None = None, page=1, per_page: int = 20) -> Page:
+def missing_seeds() -> int:
+    """How many of the known Durban branches (supermarkets and clothing shops) are not in the table yet."""
+    from app.data.durban_stores import ALL_STORES
+
+    have = set(db.session.scalars(select(Store.Slug)))
+    return sum(1 for seed in ALL_STORES if seed.slug not in have)
+
+
+def add_known_stores() -> int:
+    """Add the known Durban branches that are missing (never changes a store an admin edited). The caller commits."""
+    from app.data.durban_stores import ALL_STORES
+
+    have = set(db.session.scalars(select(Store.Slug)))
+    added = 0
+    for seed in ALL_STORES:
+        if seed.slug in have:
+            continue
+        db.session.add(
+            Store(
+                Slug=seed.slug,
+                Name=seed.name,
+                Brand=seed.brand,
+                Suburb=seed.suburb,
+                Address=seed.address,
+                Latitude=seed.lat,
+                Longitude=seed.lng,
+                LocationSource=seed.source,
+                Phone=seed.phone,
+                OpeningHours=seed.hours,
+                StoreType=seed.kind,
+            )
+        )
+        added += 1
+    return added
+
+
+def search(
+    query: str | None = None, brand: str | None = None, page=1, per_page: int = 20, store_type: str | None = None
+) -> Page:
     statement = select(Store)
     text = (query or "").strip()
     if text:
@@ -56,6 +94,8 @@ def search(query: str | None = None, brand: str | None = None, page=1, per_page:
         )
     if brand:
         statement = statement.where(Store.Brand == brand)
+    if store_type:
+        statement = statement.where(Store.StoreType == store_type)
     return paginate(statement.order_by(Store.Brand, Store.Name), page, per_page)
 
 
@@ -70,6 +110,7 @@ def snapshot(store: Store) -> dict:
         "hours": store.OpeningHours,
         "phone": store.Phone,
         "location_source": store.LocationSource,
+        "store_type": store.StoreType,
     }
 
 
@@ -79,6 +120,7 @@ def apply(store: Store, data: dict) -> Store:
     store.Latitude, store.Longitude = data["lat"], data["lng"]
     store.OpeningHours, store.Phone = data["hours"], data["phone"]
     store.LocationSource = data["location_source"]
+    store.StoreType = data.get("store_type") or store.StoreType or "grocery"
     if not store.Slug:
         store.Slug = unique_slug(store.Name)
     return store

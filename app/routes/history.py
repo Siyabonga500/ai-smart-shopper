@@ -1,14 +1,15 @@
 """Shopping List History (PDF "Other views", Step 14).
 
 GET  /history                     finished trips, newest first, with date / store / category filters
-GET  /history/<id>                one trip as a read-only invoice
+GET  /history/<id>                one trip as a read-only invoice, with the route map from home to its stores
+GET  /history/<id>/route          that route as JSON (road distance and line from OSRM, or an estimate)
 POST /history/<id>/reorder        put the trip's items back on the active list at today's prices
 """
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.services import budgets, history, shopping
+from app.services import budgets, history, routing, shopping
 from app.services.invoice import build_invoice
 from app.services.notifications import reset_request_cache
 from app.services.retail_api import RetailAPIError, RetailConfigError, get_retail_provider
@@ -32,7 +33,9 @@ def index():
         args=args,
         raw=request.args,
         store_points=history.store_points(current_user.UserId),
-        )
+        trip_maps={trip.id: history.trip_map(trip, shopping.student_center(current_user)) for trip in page.trips},
+        home_known=current_user.has_location,
+    )
 
 
 @bp.get("/<list_id>")
@@ -43,13 +46,29 @@ def detail(list_id):
         abort(404)
     budget = budgets.get_active_budget(current_user.UserId)
     active_items = budgets.list_items(budgets.get_active_list(budget)) if budget else []
+    route = history.trip_map(trip, shopping.student_center(current_user))
+    order = [stop["name"] for stop in route["stops"]]
     return render_template(
         "history/detail.html",
         trip=trip,
-        invoice=build_invoice(trip.items),
+        invoice=build_invoice(trip.items, order),
+        route=route,
+        home_known=current_user.has_location,
         has_budget=budget is not None,
         active_count=len(active_items),
     )
+
+
+@bp.get("/<list_id>/route")
+@login_required
+def route(list_id):
+    """The trip's route for the map: home, the stores in visiting order, road distance, time and the line to draw."""
+    trip = history.get_trip(current_user.UserId, list_id)
+    if trip is None:
+        return jsonify(error="That trip was not found."), 404
+    payload = routing.plan(shopping.student_center(current_user), build_invoice(trip.items).groups, return_home=True)
+    payload["home_known"] = current_user.has_location
+    return jsonify(payload)
 
 
 @bp.post("/<list_id>/reorder")

@@ -2,7 +2,8 @@
 {# Shell for every admin page: a top bar with the admin sections instead of the student navigation. #}
 {% set admin_nav = [
   ('admin.index', 'speedometer2', 'Dashboard', ['admin.index']),
-  ('admin.users', 'people', 'Users', ['admin.users', 'admin.user_detail', 'admin.user_edit']),
+  ('admin.users', 'people', 'Users', ['admin.users', 'admin.user_detail', 'admin.user_edit', 'admin.user_new']),
+  ('admin.products', 'box-seam', 'Products', ['admin.products', 'admin.product_new', 'admin.product_edit']),
   ('admin.categories', 'diagram-3', 'Categories', ['admin.categories', 'admin.category_edit']),
   ('admin.integrations_page', 'plug', 'Integrations', ['admin.integrations_page', 'admin.api_logs']),
   ('admin.stores', 'shop', 'Stores', ['admin.stores', 'admin.store_new', 'admin.store_edit']),

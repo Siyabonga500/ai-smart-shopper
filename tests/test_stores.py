@@ -5,7 +5,7 @@ import responses
 from sqlalchemy import select
 
 from app.cli import geocode_approximate_stores, upsert_stores
-from app.data.durban_stores import DURBAN_STORES, REQUESTED_BRANCHES, unconfirmed_requests
+from app.data.durban_stores import ALL_STORES, DURBAN_STORES, REQUESTED_BRANCHES, unconfirmed_requests
 from app.extensions import db
 from app.models import Store
 from app.services.stores import stores_near
@@ -83,9 +83,10 @@ def test_cli_seed_stores_and_dry_run(app):
 
     result = runner.invoke(args=["seed-stores"])
     assert result.exit_code == 0
-    assert f"{len(DURBAN_STORES)} added" in result.output
+    assert f"{len(ALL_STORES)} added" in result.output  # supermarkets and clothing shops
     assert "Not seeded" in result.output and "SPAR Musgrave" in result.output  # honest about the gaps
-    assert len(db.session.scalars(select(Store)).all()) == len(DURBAN_STORES)
+    assert len(db.session.scalars(select(Store)).all()) == len(ALL_STORES)
+    assert db.session.scalar(select(Store).where(Store.Slug == "mrprice-gateway")).StoreType == "clothing"
 
 
 def test_cli_can_load_extra_branches_from_json(app, tmp_path):
@@ -152,7 +153,8 @@ def test_stores_near_sorts_by_distance_and_respects_the_radius(seeded):
 
 def test_stores_near_can_filter_by_brand(seeded):
     found = stores_near(*DURBAN, radius_km=50, brand="Woolworths")
-    assert {store.Brand for store, _ in found} == {"Woolworths"} and len(found) == 3
+    assert {store.Brand for store, _ in found} == {"Woolworths"}
+    assert len(found) == len([s for s in DURBAN_STORES if s.brand == "Woolworths"])
 
 
 def test_stores_near_nothing_in_range(seeded):

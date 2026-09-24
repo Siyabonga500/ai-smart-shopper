@@ -67,6 +67,7 @@ def test_the_six_pdf_tables_exist_plus_the_tables_added_by_later_steps(app):
         "category_mappings",
         "integration_settings",
         "audit_logs",  # Step 16: admin portal
+        "catalogue_products",  # products admins add by hand
     }
 
 

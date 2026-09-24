@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func, select
 
 from app.extensions import db
-from app.models import Budget, ShoppingList, User
+from app.models import Budget, CatalogueProduct, ShoppingList, Store, User
 from app.services import integrations
 from app.utils.dates import MONTHS_SHORT, sast_day_bounds, to_sast, today_sast
 
@@ -27,6 +27,10 @@ def totals() -> dict:
         "active_budgets": _count(Budget, Budget.IsActive.is_(True)),
         "active_lists": _count(ShoppingList, ShoppingList.IsActive.is_(True)),
         "api_calls_today": integrations.calls_today(),
+        "products": _count(CatalogueProduct),
+        "clothing_products": _count(CatalogueProduct, CatalogueProduct.Category == "Clothing"),
+        "stores": _count(Store),
+        "clothing_stores": _count(Store, Store.StoreType.in_(("clothing", "both"))),
     }
 
 

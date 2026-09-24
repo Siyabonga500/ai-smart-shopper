@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% from "partials/_form_macros.html" import control, select, password %}
+{% block title %}Add a user - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.users') }}">Users</a></li><li class="breadcrumb-item active" aria-current="page">Add</li></ol></nav>
+  <h1 class="h3 mb-3">Add a user</h1>
+  <form method="post" class="card app-card admin-form" novalidate>
+    <div class="card-body">
+      {{ form.hidden_tag() }}
+      <div class="row">
+        <div class="col-md-6">{{ control(form.FirstName, maxlength=50, autocomplete="off") }}</div>
+        <div class="col-md-6">{{ control(form.LastName, maxlength=50, autocomplete="off") }}</div>
+        <div class="col-md-6">{{ control(form.Email, type="email", maxlength=100, autocomplete="off") }}</div>
+        <div class="col-md-6">{{ control(form.CellphoneNumber, type="tel", inputmode="numeric", maxlength=14, hint="Optional. 10 digits, for example 0821234567.") }}</div>
+        <div class="col-md-6">{{ password(form.Password, hint="At least 8 characters with upper- and lower-case letters, a number and a symbol.", autocomplete="new-password") }}</div>
+        <div class="col-md-6">{{ select(form.Role, hint="Admins can open this portal.") }}</div>
+      </div>
+      <div class="d-flex gap-2 justify-content-end">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.users') }}">Cancel</a>
+        <button class="btn btn-brand" type="submit">Add user</button>
+      </div>
+    </div>
+  </form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

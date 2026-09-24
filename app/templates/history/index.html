@@ -86,6 +86,18 @@
                   <i class="bi bi-chevron-right text-muted-ink" aria-hidden="true"></i>
                 </div>
               </a>
+              {% set tm = trip_maps.get(trip.id) %}
+              {% if tm and tm.stops %}
+                <div class="card app-card border-top-0 rounded-top-0"><div class="card-body pt-0 px-3 pb-3">
+                  <div class="trip-map" data-trip-map='{{ tm|tojson }}' role="img"
+                       aria-label="Map of this trip: from your residence to {{ tm.stops|map(attribute='name')|join(', ') }}"></div>
+                  <div class="small text-muted-ink mt-1">
+                    <i class="bi bi-signpost-split me-1" aria-hidden="true"></i>{{ 'Home' if home_known else 'Central Durban' }}
+                    {% for stop in tm.stops %} → {{ stop.order }}. {{ stop.name }}{% endfor %} → {{ 'Home' if home_known else 'back' }}
+                    · about {{ tm.distance_km }} km
+                  </div>
+                </div></div>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>

@@ -15,8 +15,9 @@
       <div class="col-md-4">{{ control(form.Latitude, type="text", inputmode="decimal", placeholder="-29.8587") }}</div>
       <div class="col-md-4">{{ control(form.Longitude, type="text", inputmode="decimal", placeholder="31.0218") }}</div>
       <div class="col-md-4">{{ select(form.LocationSource, hint="Official = from the retailer’s own page.") }}</div>
-      <div class="col-md-6">{{ control(form.OpeningHours, maxlength=255, placeholder="Mon–Sat 08:00–20:00, Sun 09:00–17:00") }}</div>
-      <div class="col-md-6">{{ control(form.Phone, type="tel", maxlength=30) }}</div>
+      <div class="col-md-4">{{ select(form.StoreType, hint="Clothing products can only be added to clothing stores.") }}</div>
+      <div class="col-md-4">{{ control(form.OpeningHours, maxlength=255, placeholder="Mon–Sat 08:00–20:00, Sun 09:00–17:00") }}</div>
+      <div class="col-md-4">{{ control(form.Phone, type="tel", maxlength=30) }}</div>
     </div>
     <div class="d-flex gap-2 justify-content-end">
       <a class="btn btn-outline-secondary" href="{{ url_for('admin.stores') }}">Cancel</a>

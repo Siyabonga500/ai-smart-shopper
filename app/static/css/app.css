@@ -486,3 +486,19 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); }
 .error-title { font-size: var(--fs-lg); font-weight: 700; margin-bottom: .5rem; }
 @media (min-width: 992px) { .error-title { font-size: var(--fs-xl); } }
 .error-message { font-size: var(--fs-md); margin-bottom: 1.25rem; }
+.product-stock.low-stock { color: var(--warning-text); }
+
+/* ---- Admin > Products ---------------------------------------------------------------------- */
+.admin-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: var(--surface-2, #f3f5f6); flex-shrink: 0; }
+.admin-thumb.lg { width: 72px; height: 72px; }
+.admin-url { max-width: 22rem; }
+.product-store-map { height: 320px; border-radius: 12px; overflow: hidden; }
+.store-card { border: 1px solid rgba(0, 0, 0, .1); border-radius: 10px; padding: .75rem; }
+.step-no { display: inline-flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: var(--brand, #2C666E); color: #fff; font-size: var(--fs-sm); margin-right: .35rem; }
+.required-now::after { content: " *"; color: var(--warning-strong); }
+
+/* ---- History: a map for every trip -------------------------------------------------------------- */
+.trip-map { height: 180px; border-radius: 10px; overflow: hidden; margin-top: .75rem; }
+.trip-route-map { height: 340px; border-radius: 12px; overflow: hidden; }
+.btn-check:checked + .btn-outline-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
