@@ -904,7 +904,9 @@ class LoyaltyHubProvider(_LiveProvider):
     ``{"retailer": "shoprite", "barcode": "6001030002075", "name": "...", "price": 21.99, "in_stock": true,
     "image_url": "https://..."}``, and ``meta.quota`` / ``meta.used`` say how much of the month's calls are left.
 
-    The free key allows 100 calls a month and 20 a minute, so a search is a single call (no paging) and answers are
+    Answers are paged: when ``meta.has_more`` (or ``total``, ``next_page``, ``last_page``, ``links.next``) says there is
+    more, the next page is asked for with both ``page`` and ``offset`` (whichever the API reads), up to ``max_pages``
+    pages per search. Each page is one call, and the free key allows 100 calls a month and 20 a minute, so answers are
     cached for ``cache_ttl`` (a day). Prices are per retailer, not per branch: each row is pinned to the nearest branch
     in our ``stores`` table so distance and routing still work. Product pictures come straight from ``image_url``.
     """
@@ -912,11 +914,14 @@ class LoyaltyHubProvider(_LiveProvider):
     name = "loyaltyhub"
     SERVICE = "loyaltyhub"
 
-    def __init__(self, api_key: str, *, base_url="https://loyaltyhub.co.za/api/v1", page_size=100, cache_ttl=900):
+    def __init__(
+        self, api_key: str, *, base_url="https://loyaltyhub.co.za/api/v1", page_size=100, cache_ttl=900, max_pages=5
+    ):
         if not api_key:
             raise RetailConfigError("LOYALTYHUB_API_KEY is not set.")
         self.api_key, self.base_url = api_key, base_url.rstrip("/")
         self.page_size = max(1, min(int(page_size), 500))  # the API's own maximum is 500
+        self.max_pages = max(1, int(max_pages))
         self.cache_ttl = int(cache_ttl)
         self.quota: dict = {}  # the last meta.quota / meta.used seen, for the admin page and the logs
 
@@ -927,9 +932,54 @@ class LoyaltyHubProvider(_LiveProvider):
             base_url=cfg["LOYALTYHUB_BASE_URL"],
             page_size=cfg["LOYALTYHUB_PAGE_SIZE"],
             cache_ttl=cfg["LOYALTYHUB_CACHE_TTL"],
+            max_pages=cfg.get("LOYALTYHUB_MAX_PAGES", 5),
         )
 
     def _get(self, path: str, params: dict) -> list:
+        return self._fetch(path, params)[0]
+
+    @staticmethod
+    def _more(payload, meta: dict, have: int, page: int) -> bool:
+        """Does the answer say there is another page?"""
+        if meta.get("has_more") is not None:
+            return bool(meta.get("has_more"))
+        if meta.get("next_page") or meta.get("next_cursor") or meta.get("next"):
+            return True
+        links = payload.get("links") if isinstance(payload, dict) else None
+        if isinstance(links, dict) and links.get("next"):
+            return True
+        try:
+            if meta.get("last_page") is not None:
+                return page < int(meta["last_page"])
+            if meta.get("total") is not None:
+                return have < int(meta["total"])
+        except (TypeError, ValueError):
+            return False
+        return False
+
+    def _get_all(self, path: str, params: dict) -> list:
+        """Every page of an answer (at most ``max_pages`` calls), duplicates removed."""
+        rows, seen = [], set()
+        for page in range(1, self.max_pages + 1):
+            extra = {"page": page, "offset": len(rows)} if page > 1 else {}
+            found, payload = self._fetch(path, {**params, **extra})
+            added = 0
+            for row in found:
+                key = json.dumps(row, sort_keys=True, default=str) if isinstance(row, dict) else repr(row)
+                if key not in seen:
+                    seen.add(key)
+                    rows.append(row)
+                    added += 1
+            meta = payload.get("meta") if isinstance(payload, dict) else None
+            if (
+                not found
+                or not added
+                or not self._more(payload, meta if isinstance(meta, dict) else {}, len(rows), page)
+            ):
+                break
+        return rows
+
+    def _fetch(self, path: str, params: dict) -> tuple[list, object]:
         try:
             response = _retail_request(
                 self.SERVICE,
@@ -953,7 +1003,7 @@ class LoyaltyHubProvider(_LiveProvider):
         if status in (401, 403):
             raise RetailAPIError("LoyaltyHub rejected the API key.", service=self.SERVICE, status=status)
         if status == 404:
-            return []
+            return [], {}
         if status >= 400:
             raise RetailAPIError(f"LoyaltyHub answered HTTP {status}.", service=self.SERVICE, status=status)
         try:
@@ -963,7 +1013,7 @@ class LoyaltyHubProvider(_LiveProvider):
         meta = payload.get("meta") if isinstance(payload, dict) else None
         if isinstance(meta, dict) and meta.get("quota") is not None:
             self.quota = {"quota": meta.get("quota"), "used": meta.get("used")}
-        return _extract_items(payload)
+        return _extract_items(payload), payload
 
     def _products(self, rows: list, category: str | None) -> list[Product]:
         products = []
@@ -985,7 +1035,7 @@ class LoyaltyHubProvider(_LiveProvider):
             params["search"] = query
         else:
             params["category"] = category
-        products = self._products(self._get("/prices", params), category)
+        products = self._products(self._get_all("/prices", params), category)
         if category:
             products = [p for p in products if (p.category or category).casefold() == category.casefold()]
         return self._attach_branches(products, lat, lng, radius_km)
@@ -994,7 +1044,7 @@ class LoyaltyHubProvider(_LiveProvider):
         barcode = clean_barcode(barcode)
         if not barcode:
             return []
-        rows = self._get("/prices", {"barcode": barcode, "limit": self.page_size})
+        rows = self._get_all("/prices", {"barcode": barcode, "limit": self.page_size})
         offers = [p for p in self._products(rows, None) if p.barcode == barcode]
         return sorted(self._attach_branches(offers, lat, lng, radius_km), key=lambda p: (p.price, p.store_name))
 

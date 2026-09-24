@@ -174,7 +174,9 @@ class BaseConfig:
     LOYALTYHUB_API_KEY = os.getenv("LOYALTYHUB_API_KEY")
     LOYALTYHUB_BASE_URL = os.getenv("LOYALTYHUB_BASE_URL") or "https://loyaltyhub.co.za/api/v1"
     LOYALTYHUB_CACHE_TTL = _env_int("LOYALTYHUB_CACHE_TTL", 24 * 60 * 60)
-    LOYALTYHUB_PAGE_SIZE = _env_int("LOYALTYHUB_PAGE_SIZE", 100)  # rows per search (one call; the API allows up to 500)
+    LOYALTYHUB_PAGE_SIZE = _env_int("LOYALTYHUB_PAGE_SIZE", 100)  # rows asked for per page (the API allows up to 500)
+    # Pages fetched per search when LoyaltyHub says there are more results. Each page is one call from your quota.
+    LOYALTYHUB_MAX_PAGES = _env_int("LOYALTYHUB_MAX_PAGES", 5)
     # Buyly (closed beta, key by application). The response format is not public, see services/retail_api.py.
     BUYLY_API_KEY = os.getenv("BUYLY_API_KEY")
     BUYLY_BASE_URL = os.getenv("BUYLY_BASE_URL") or "https://api.buyly.co.za/v1"

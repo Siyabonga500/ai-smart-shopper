@@ -362,3 +362,43 @@ def test_the_mock_catalogue_shows_a_picture_for_every_category(app):
 
     for url in images.values():
         assert (Path(app.root_path) / url.removeprefix("/")).is_file(), url
+
+
+# ------------------------------------------------------------------------------------------------ LoyaltyHub paging
+def _page(rows, has_more):
+    return {"data": rows, "meta": {"count": len(rows), "has_more": has_more, "quota": 100, "used": 1}}
+
+
+def _rows(start, count):
+    return [_row(barcode=f"60010300{n:05d}", name=f"Milk {n}") for n in range(start, start + count)]
+
+
+@responses.activate
+def test_loyaltyhub_follows_more_pages_when_the_api_says_there_are_more(app):
+    responses.get(LH, json=_page(_rows(0, 10), True))
+    responses.get(LH, json=_page(_rows(10, 10), True))
+    responses.get(LH, json=_page(_rows(20, 4), False))
+    products = LoyaltyHubProvider("k").search_products("milk", *DURBAN)
+    assert len(products) == 24 and len(responses.calls) == 3
+    second = responses.calls[1].request.url
+    assert "page=2" in second and "offset=10" in second and "search=milk" in second
+
+
+@responses.activate
+def test_loyaltyhub_paging_stops_at_max_pages_and_on_repeated_pages(app):
+    for _ in range(5):
+        responses.get(LH, json=_page(_rows(0, 10), True))  # an API that ignores page/offset: same rows again
+    assert len(LoyaltyHubProvider("k").search_products("milk", *DURBAN)) == 10
+    assert len(responses.calls) == 2  # the repeat added nothing, so no third call
+
+    responses.calls.reset()
+    responses.replace(responses.GET, LH, json=_page(_rows(0, 10), True))
+    provider = LoyaltyHubProvider("k", max_pages=1)
+    assert len(provider.search_products("bread", *DURBAN)) == 10 and len(responses.calls) == 1
+
+
+@responses.activate
+def test_loyaltyhub_total_and_last_page_also_mean_more(app):
+    responses.get(LH, json={"data": _rows(0, 10), "meta": {"total": 15}})
+    responses.get(LH, json={"data": _rows(10, 5), "meta": {"total": 15}})
+    assert len(LoyaltyHubProvider("k").search_products("milk", *DURBAN)) == 15
