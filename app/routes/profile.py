@@ -65,6 +65,8 @@ def edit():
     user = current_user._get_current_object()
     form = ProfileForm(obj=user)
     password_form = ChangePasswordForm(prefix="pw", require_current=user.has_password)
+    if request.method == "GET":
+        form.select_residence_for(user.ResidentialAddress)
 
     if request.method == "POST" and form.validate_on_submit():
         old_address = (user.ResidentialAddress or "").strip()

@@ -145,6 +145,8 @@ def product_details():
         ]
     if not offers:
         return _error("We could not find that product any more.", 404)
+    # Distances from the student's own address (the provider may not have worked them out).
+    offers = [search.with_distance(o, center) for o in offers]
 
     viewed = next(
         (o for o in offers if (store_id and o.store_id == store_id) or (store_name and o.store_name == store_name)),
@@ -154,13 +156,31 @@ def product_details():
     cheapest = products.cheapest_in_stock(offers)
     ordered = sorted(offers, key=lambda o: (not o.in_stock, o.price, o.store_name))
     cards = []
+    comparison = products.distance_comparison(offers)
+    best = next(
+        (
+            o
+            for o in offers
+            if products.offer_key(o.barcode, o.store_id, o.store_name, o.name) == comparison["cheapest_key"]
+        ),
+        cheapest,
+    )
+    several = len([o for o in offers if o.in_stock]) > 1
     for offer in ordered:
-        badges = ["CHEAPEST"] if len([o for o in offers if o.in_stock]) > 1 and offer is cheapest else []
-        cards.append(products.offer_to_card(offer, badges, quantities))
+        card = products.offer_to_card(offer, [], quantities)
+        if several and card["key"] == comparison["cheapest_key"]:
+            card["badges"].append("CHEAPEST")
+        if several and card["key"] == comparison["nearest_key"]:
+            card["badges"].append("CLOSEST")
+        card["far"] = comparison["far"] and card["key"] == comparison["cheapest_key"]
+        cards.append(products.compare_fields(card, offer, best if offer.in_stock else None))
     return jsonify(
         product=products.offer_to_card(viewed, [], quantities),
         offers=cards,
-        cheapest_key=products.offer_to_card(cheapest, [], quantities)["key"] if cheapest else None,
+        cheapest_key=comparison["cheapest_key"]
+        or (products.offer_to_card(cheapest, [], quantities)["key"] if cheapest else None),
+        comparison=comparison,
+        home_known=current_user.has_location,
         savings=products.savings_text(viewed, offers),
     )
 

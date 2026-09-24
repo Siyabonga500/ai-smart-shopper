@@ -502,3 +502,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); }
 .trip-map { height: 180px; border-radius: 10px; overflow: hidden; margin-top: .75rem; }
 .trip-route-map { height: 340px; border-radius: 12px; overflow: hidden; }
 .btn-check:checked + .btn-outline-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* ---- Compare window: price against distance from the student ---------------------------------------- */
+.badge-tag.closest { background: var(--brand-tint); color: var(--brand-dark); }
+.offer-distance { color: var(--ink); }
+.offer-distance.far { color: var(--danger-text); font-weight: 700; }
+.compare-note { border-radius: .6rem; padding: .5rem .75rem; font-weight: 600; font-size: var(--fs-sm); }
+.compare-note.ok { background: var(--success-tint); color: var(--success-text); }
+.compare-note.far { background: var(--danger-tint); color: var(--danger-text); }

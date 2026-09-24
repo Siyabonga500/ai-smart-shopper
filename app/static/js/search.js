@@ -145,7 +145,7 @@
 
   // ------------------------------------------------------------------------------------------- product cards
   function badgeEl(text) {
-    var kind = text === "CHEAPEST" ? "cheapest" : "recommended";
+    var kind = text === "CHEAPEST" ? "cheapest" : text === "CLOSEST" ? "closest" : "recommended";
     return h("span", { "class": "badge-tag " + kind, text: text });
   }
 
@@ -200,16 +200,16 @@
     ]);
     var meta = h("div", { "class": "product-meta" }, [
       h("span", { "class": "text-truncate", text: card.store_name || card.retailer || "Live retailer" }),
-      card.distance_km != null ? h("span", { "class": "flex-shrink-0", text: "· " + km(card.distance_km) }) : null,
+      card.distance_km != null ? h("span", { "class": "flex-shrink-0", text: "· " + km(card.distance_km) + " away" }) : null,
       h("span", { "class": "product-stock " + stockClass(card), text: stockText(card) })
     ]);
     var source = h("div", { "class": "product-source", text: [card.retailer, card.brand, card.barcode ? "Barcode " + card.barcode : ""].filter(Boolean).join(" · ") || "Live price" });
     var why = (card.reasons && card.reasons.length) ? h("div", { "class": "product-why", text: card.reasons[0], title: card.reasons.join(". ") }) : null;
     var priceRow = h("div", { "class": "product-price-row" }, [App.priceEl(card.price, "product-price"), inListPill(card.in_list_qty || 0)]);
+    // One button: Compare opens every store's price and distance from the student, and adding happens there.
     var actions = h("div", { "class": "product-actions" }, [
-      h("button", { type: "button", "class": "btn btn-outline-brand btn-sm", "aria-label": "View details for " + card.name + " at " + (card.store_name || "store"),
-                    onclick: function () { openProduct(card); } }, [icon("eye"), h("span", { "class": "ms-1", text: "View" })]),
-      addButton(card)
+      h("button", { type: "button", "class": "btn btn-brand btn-sm w-100", "aria-label": "Compare prices and distances for " + card.name,
+                    onclick: function () { openProduct(card); } }, [icon("arrow-left-right"), h("span", { "class": "ms-1", text: "Compare" })])
     ]);
     article.appendChild(thumb);
     article.appendChild(h("div", { "class": "product-body" }, [badges, name, meta, source, why, priceRow, actions]));
@@ -390,41 +390,55 @@
       h("div", { "class": "col-md-5" }, [thumbEl(p, "product-hero")]),
       h("div", { "class": "col-md-7" }, [
         h("div", { "class": "d-flex align-items-baseline justify-content-between gap-2" }, [App.priceEl(p.price, "product-price fs-2"), inListPill(p.in_list_qty || 0)]),
-        data.savings && data.savings.text ? h("p", { "class": "saving-note mt-1 mb-2" }, [icon(data.savings.kind === "save" ? "piggy-bank" : "check-circle"), " ", data.savings.text]) : null,
-        h("dl", { "class": "facts" }, facts),
-        h("div", { "class": "d-flex flex-wrap gap-2" }, [addButton(p, false)])
+        h("dl", { "class": "facts" }, facts)
       ])
     ]);
 
+    var comparison = data.comparison || {};
     var others = h("div", { "class": "mt-4" });
-    others.appendChild(h("h3", { "class": "h6 fw-bold", text: "Compare prices near you" }));
-    if (data.offers.length < 2) {
-      others.appendChild(h("p", { "class": "text-muted-ink small mb-0", text: "This product is only listed at " + (p.store_name || "one store") + " near you." }));
-    } else {
-      var list = h("ul", { "class": "offer-list list-unstyled mb-0" });
-      data.offers.forEach(function (offer) {
-        var cheapest = offer.key === data.cheapest_key;
-        list.appendChild(h("li", { "class": "offer-row" + (cheapest ? " cheapest" : ""), "data-key": offer.key }, [
-          h("div", { "class": "min-w-0" }, [
-            h("div", { "class": "fw-600 text-truncate", text: offer.store_name || offer.retailer }),
-            h("div", { "class": "small text-muted-ink", text: (offer.distance_km != null ? km(offer.distance_km) : "") + (offer.in_stock ? "" : " · Out of stock") })
-          ]),
-          h("div", { "class": "d-flex align-items-center gap-2 flex-shrink-0" }, [
-            cheapest && offer.in_stock ? badgeEl("CHEAPEST") : null,
-            App.priceEl(offer.price, "fw-bold"),
-            inListPill(offer.in_list_qty || 0),
-            addButton(offer)
-          ])
-        ]));
-      });
-      others.appendChild(list);
+    others.appendChild(h("h3", { "class": "h6 fw-bold", text: "Compare prices and distance from you" }));
+    if (comparison.text) {
+      others.appendChild(h("p", { "class": "compare-note " + (comparison.far ? "far" : "ok"), role: "status" }, [
+        icon(comparison.far ? "exclamation-triangle" : "check-circle"), " ", comparison.text]));
     }
-    body.replaceChildren(main, others);
+    if (!data.home_known) {
+      others.appendChild(h("p", { "class": "small text-muted-ink", text: "Distances are from central Durban because your address is not saved. Add it in your profile for exact distances." }));
+    }
+    var list = h("ul", { "class": "offer-list list-unstyled mb-0" });
+    data.offers.forEach(function (offer) {
+      var cheapest = offer.key === data.cheapest_key;
+      var distance = offer.distance_km != null ? km(offer.distance_km) + " away from you" : "Distance unknown";
+      var detail = [];
+      if (!offer.in_stock) detail.push("Out of stock");
+      else if (!cheapest && offer.more_than_cheapest && offer.more_than_cheapest !== "0.00") {
+        detail.push("R" + offer.more_than_cheapest + " more than the cheapest");
+        if (offer.closer_than_cheapest_km != null && offer.closer_than_cheapest_km > 0) detail.push(km(offer.closer_than_cheapest_km) + " closer");
+      }
+      list.appendChild(h("li", { "class": "offer-row" + (cheapest ? " cheapest" : ""), "data-key": offer.key }, [
+        h("div", { "class": "min-w-0" }, [
+          h("div", { "class": "fw-600 text-truncate", text: offer.store_name || offer.retailer }),
+          offer.store_address ? h("div", { "class": "small text-muted-ink text-truncate", text: offer.store_address }) : null,
+          h("div", { "class": "small offer-distance" + (offer.far ? " far" : ""), title: offer.far ? "The cheapest store is further away than another store that has it" : null }, [
+            icon("geo-alt"), " ", distance]),
+          detail.length ? h("div", { "class": "small text-muted-ink", text: detail.join(" · ") }) : null
+        ]),
+        h("div", { "class": "d-flex flex-column align-items-end gap-1 flex-shrink-0" }, [
+          h("div", { "class": "d-flex gap-1" }, (offer.badges || []).map(badgeEl)),
+          App.priceEl(offer.price, "fw-bold"),
+          inListPill(offer.in_list_qty || 0),
+          addButton(offer)
+        ])
+      ]));
+    });
+    others.appendChild(list);
+    others.classList.remove("mt-4");
+    main.classList.add("mt-4");
+    body.replaceChildren(others, main);   // the comparison first: that is what the student opened this for
   }
 
   function openProduct(card) {
     if (!modal) return;
-    $("product-modal-title").textContent = card.name;
+    $("product-modal-title").textContent = "Compare: " + card.name;
     $("product-modal-body").replaceChildren(h("div", { "class": "text-center text-muted-ink py-5" }, [
       h("div", { "class": "spinner-border spinner-border-sm me-2", role: "status" }), "Loading prices…"]));
     modal.show();

@@ -122,3 +122,74 @@ def savings_text(viewed: Product, offers) -> dict:
             "text": f"Save {format_zar(diff)} by going to {place}",
         }
     return {"kind": "cheapest", "amount": "0.00", "text": "This is the cheapest price near you."}
+
+
+CLOSER_BY_KM = Decimal("0.5")  # another store must be at least this much nearer before the cheapest one is flagged
+
+
+def distance_comparison(offers) -> dict:
+    """Weigh price against distance for one product at several stores (the Compare window).
+
+    Distances are from the student's saved address. When the cheapest store is further away than another store that
+    also has the product, the cheapest store's distance is flagged (``far``) and the cheapest of the closer stores is
+    named with how much more it costs and how much closer it is, for example::
+
+        Cheapest: R30.00 at Checkers Gateway, 8 km away from you.
+        Shoprite West Street is R1.00 more but only 2 km away (6 km closer).
+    """
+    from app.utils.formatters import format_zar
+
+    def km(value) -> str:
+        return f"{Decimal(str(value)).quantize(Decimal('0.1')).normalize():f} km"
+
+    in_stock = [o for o in offers if o.in_stock]
+    located = [o for o in in_stock if o.distance_km is not None]
+    result = {"far": False, "cheapest_key": None, "nearest_key": None, "text": None, "alternative": None}
+    if not in_stock:
+        return result
+    cheapest = min(in_stock, key=lambda o: (o.price, o.distance_km if o.distance_km is not None else 999))
+    result["cheapest_key"] = offer_key(cheapest.barcode, cheapest.store_id, cheapest.store_name, cheapest.name)
+    if not located:
+        return result
+    nearest = min(located, key=lambda o: (o.distance_km, o.price))
+    result["nearest_key"] = offer_key(nearest.barcode, nearest.store_id, nearest.store_name, nearest.name)
+    if cheapest.distance_km is None:
+        return result
+    where = cheapest.store_name or cheapest.retailer
+    text = f"Cheapest: {format_zar(money(cheapest.price))} at {where}, {km(cheapest.distance_km)} away from you."
+
+    def closer_by(offer) -> Decimal:
+        return Decimal(str(cheapest.distance_km)) - Decimal(str(offer.distance_km))
+
+    # The best tip: the cheapest of the stores that are clearly closer than the cheapest one.
+    closer = [o for o in located if o is not cheapest and closer_by(o) >= CLOSER_BY_KM]
+    if closer:
+        other = min(closer, key=lambda o: (o.price, o.distance_km))
+        extra = money(other.price) - money(cheapest.price)
+        result["far"] = True
+        result["alternative"] = {
+            "key": offer_key(other.barcode, other.store_id, other.store_name, other.name),
+            "extra": str(extra),
+            "closer_km": float(closer_by(other)),
+        }
+        text += (
+            f" {other.store_name or other.retailer} is {format_zar(extra)} more but only "
+            f"{km(other.distance_km)} away ({km(closer_by(other))} closer)."
+        )
+    elif len(in_stock) > 1:
+        text += " It is also the closest store that has it."
+    result["text"] = text
+    return result
+
+
+def compare_fields(card: dict, offer: Product, cheapest: Product | None) -> dict:
+    """Add ``more_than_cheapest`` (rand) and ``closer_than_cheapest_km`` to an offer card for the Compare list."""
+    if cheapest is None or offer is cheapest:
+        card["more_than_cheapest"], card["closer_than_cheapest_km"] = "0.00", None
+        return card
+    card["more_than_cheapest"] = str(money(offer.price) - money(cheapest.price))
+    if offer.distance_km is not None and cheapest.distance_km is not None:
+        card["closer_than_cheapest_km"] = round(cheapest.distance_km - offer.distance_km, 1)
+    else:
+        card["closer_than_cheapest_km"] = None
+    return card

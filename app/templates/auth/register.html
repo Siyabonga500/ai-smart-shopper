@@ -72,24 +72,7 @@
             </div>
 
             <h2 class="h6 text-uppercase text-muted mt-4 mb-3">Where you live</h2>
-            <div class="mb-3">
-              <label class="form-label" for="Residence">DUT residence</label>
-              <select class="form-select{% if form.Residence.errors %} is-invalid{% endif %}" id="Residence" name="Residence">
-                <option value="">Select your residence…</option>
-                {% for area, residences in grouped_residences() %}
-                  <optgroup label="{{ area }}">
-                    {% for r in residences %}
-                      <option value="{{ r.key }}" data-address="{{ r.full_address }}" data-lat="{{ r.latitude or '' }}" data-lng="{{ r.longitude or '' }}"{% if form.Residence.data == r.key %} selected{% endif %}>
-                        {{ r.name }}{% if r.note %} ({{ r.note }}){% endif %}
-                      </option>
-                    {% endfor %}
-                  </optgroup>
-                {% endfor %}
-                <option value="other"{% if form.Residence.data == 'other' %} selected{% endif %}>Other / private accommodation</option>
-              </select>
-              <div class="invalid-feedback" data-error-for="Residence">{{ form.Residence.errors[0] if form.Residence.errors }}</div>
-              <div class="form-text">Living in a DUT residence? Pick it and the address is filled in. Otherwise choose “Other” and type or pin your address.</div>
-            </div>
+            {% include "partials/residence_select.html" %}
 
             {% with address_field=form.ResidentialAddress, lat_field=form.Latitude, lng_field=form.Longitude %}
               {% include "partials/map_picker.html" %}

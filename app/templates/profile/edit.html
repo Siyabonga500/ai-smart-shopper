@@ -44,6 +44,9 @@
 
             {{ control(form.CellphoneNumber, type="tel", inputmode="numeric", autocomplete="tel-national", maxlength=14, placeholder="0821234567", hint="10 digits, for example 0821234567.") }}
 
+            <h2 class="h6 text-uppercase text-muted mt-4 mb-3">Where you live</h2>
+            {% include "partials/residence_select.html" %}
+
             {% with address_field=form.ResidentialAddress, lat_field=form.Latitude, lng_field=form.Longitude %}
               {% include "partials/map_picker.html" %}
             {% endwith %}
@@ -78,6 +81,7 @@
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/map_picker.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/residence_picker.js') }}"></script>
   <script nonce="{{ csp_nonce() }}">
     // Client-side check for the photo (the server checks the file's real type and size again).
     (function () {

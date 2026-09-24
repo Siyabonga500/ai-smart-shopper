@@ -155,8 +155,12 @@ def _sort_key(sort: str):
     return lambda c: (Decimal(c["price"]), c["name"].casefold(), c["store_name"] or "")
 
 
-def _with_distance(offer: Product, center: dict) -> Product:
-    if offer.distance_km is not None or offer.store_lat is None or offer.store_lng is None:
+def with_distance(offer: Product, center: dict) -> Product:
+    """``offer`` with its distance worked out from ``center`` (the student's own address).
+
+    Always recomputed when the store's position is known: a cached provider answer may have been worked out for a
+    neighbour up to a kilometre away."""
+    if offer.store_lat is None or offer.store_lng is None:
         return offer
     from dataclasses import replace
 
@@ -173,7 +177,7 @@ def run_search(provider: RetailProvider, user: User, params: SearchParams, activ
         return SearchResult([], 0, 1, 1, params.radius_km, center)
 
     offers = [
-        _with_distance(o, center)
+        with_distance(o, center)
         for o in provider.search_products(params.q, center["lat"], center["lng"], params.radius_km, params.category)
     ]
     offers = [o for o in offers if o.distance_km is None or o.distance_km <= params.radius_km]
