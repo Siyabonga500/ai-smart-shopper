@@ -10,11 +10,10 @@
   var cfg = root.dataset;
   var $ = function (id) { return document.getElementById(id); };
 
-  var RADIUS_DEFAULT = parseInt(cfg.radiusDefault, 10) || 5;
-  var RADIUS_MAX = parseInt(cfg.radiusMax, 10) || 15;
-  var EMPTY_PROMPT = "Search for a product or pick a category to compare prices near you.";
-
-  var state = { q: "", category: "", min: "", max: "", radius: RADIUS_DEFAULT, stores: new Set(), sort: "lowest",
+  var RADIUS_MAX = parseInt(cfg.radiusMax, 10) || 60;
+  var RADIUS_DEFAULT = isFinite(parseInt(cfg.radiusDefault, 10)) ? parseInt(cfg.radiusDefault, 10) : RADIUS_MAX;
+  
+  var state = { q: "", category: "", min: "", max: "", radius: RADIUS_DEFAULT, stores: new Set(), sort: "auto",
                 page: 1, pages: 1, total: 0 };
   var stores = [];
   var searchSeq = 0, modalSeq = 0, controller = null, timers = {};
@@ -51,9 +50,9 @@
     state.min = p.get("min_price") || "";
     state.max = p.get("max_price") || "";
     var radius = parseFloat(p.get("radius"));
-    if (isFinite(radius) && radius > 0) state.radius = Math.min(Math.round(radius), RADIUS_MAX);
+    if (isFinite(radius) && radius >= 0) state.radius = Math.min(Math.round(radius), RADIUS_MAX);
     var sorts = Array.prototype.map.call($("sort").options, function (o) { return o.value; });
-    state.sort = sorts.indexOf(p.get("sort")) >= 0 ? p.get("sort") : "lowest";
+    state.sort = sorts.indexOf(p.get("sort")) >= 0 ? p.get("sort") : "auto";   // auto: the server decides
     (p.get("stores") || "").split(",").forEach(function (id) { if (id.trim()) state.stores.add(id.trim()); });
   }
 
@@ -64,7 +63,7 @@
     if (state.min) p.set("min_price", state.min);
     if (state.max) p.set("max_price", state.max);
     if (state.radius !== RADIUS_DEFAULT) p.set("radius", state.radius);
-    if (state.sort !== "lowest") p.set("sort", state.sort);
+    if (state.sort !== "auto") p.set("sort", state.sort);
     if (state.stores.size) p.set("stores", Array.from(state.stores).join(","));
     if (page && page > 1) p.set("page", page);
     return p;
@@ -81,7 +80,7 @@
     $("max-price").value = state.max;
     $("radius").value = state.radius;
     $("radius-out").textContent = state.radius;
-    $("sort").value = state.sort;
+    if (state.sort !== "auto") $("sort").value = state.sort;
     Array.prototype.forEach.call(document.querySelectorAll("#category-chips [data-category]"), function (chip) {
       var on = chip.dataset.category === state.category;
       chip.classList.toggle("active", on);
@@ -205,6 +204,8 @@
     ]);
     var source = h("div", { "class": "product-source", text: [card.retailer, card.brand, card.barcode ? "Barcode " + card.barcode : ""].filter(Boolean).join(" · ") || "Live price" });
     var why = (card.reasons && card.reasons.length) ? h("div", { "class": "product-why", text: card.reasons[0], title: card.reasons.join(". ") }) : null;
+    var pref = (card.preferred && card.preferred.length) ? h("div", { "class": "product-pref", title: card.preferred.join(" · ") }, [
+      icon("heart-fill"), " ", "Matches your preferences: " + card.preferred.join(" · ")]) : null;
     var priceRow = h("div", { "class": "product-price-row" }, [App.priceEl(card.price, "product-price"), inListPill(card.in_list_qty || 0)]);
     // One button: Compare opens every store's price and distance from the student, and adding happens there.
     var actions = h("div", { "class": "product-actions" }, [
@@ -212,7 +213,7 @@
                     onclick: function () { openProduct(card); } }, [icon("arrow-left-right"), h("span", { "class": "ms-1", text: "Compare" })])
     ]);
     article.appendChild(thumb);
-    article.appendChild(h("div", { "class": "product-body" }, [badges, name, meta, source, why, priceRow, actions]));
+    article.appendChild(h("div", { "class": "product-body" }, [badges, name, meta, source, pref, why, priceRow, actions]));
     return article;
   }
 
@@ -271,17 +272,10 @@
 
   // ------------------------------------------------------------------------------------------- search
   function runSearch(append) {
-    var hasQuery = !!(state.q || state.category);
     if (!append) state.page = 1;
     writeUrl();
     updateFilterCount();
     if (controller) controller.abort();
-    if (!hasQuery) {
-      searchSeq++;
-      status("");
-      showEmpty(EMPTY_PROMPT);
-      return;
-    }
     var seq = ++searchSeq;
     controller = new AbortController();
     var results = $("results");
@@ -296,6 +290,7 @@
         if (seq !== searchSeq) return;
         results.setAttribute("aria-busy", "false");
         state.page = data.page; state.pages = data.pages; state.total = data.total;
+        if (state.sort === "auto" && data.sort) $("sort").value = data.sort;   // show the order the server used
         if (!append) results.replaceChildren();
         if (!data.total) {
           showEmpty("No products found" + (state.q ? " for “" + state.q + "”" : "") + " within " + km(data.radius_km) +
@@ -304,7 +299,8 @@
           return;
         }
         data.results.forEach(function (card) { results.appendChild(cardEl(card)); });
-        status(data.total + (data.total === 1 ? " product" : " products") + " within " + km(data.radius_km));
+        status(data.total + (data.total === 1 ? " product" : " products") + " within " + km(data.radius_km) +
+               (state.q || state.category ? "" : " · all categories"));
         $("load-more").hidden = state.page >= state.pages;
       })
       .catch(function (error) {
@@ -522,7 +518,8 @@
   });
 
   $("radius").addEventListener("input", function () {
-    state.radius = parseInt(this.value, 10) || RADIUS_DEFAULT;
+    state.radius = parseInt(this.value, 10);
+    if (!isFinite(state.radius)) state.radius = RADIUS_DEFAULT;
     $("radius-out").textContent = state.radius;
     debounce("radius", function () {
       loadStores().then(function () { runSearch(false); });

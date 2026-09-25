@@ -17,6 +17,7 @@ from app.models import Preference
 from app.services.account_stats import account_stats
 from app.services.accounts import apply_location
 from app.services.photos import PhotoError, delete_profile_photo, save_profile_photo
+from app.services.recommendations import preference_suggestions
 from app.utils.validators import validate_sa_phone
 
 bp = Blueprint("profile", __name__, url_prefix="/profile")
@@ -47,6 +48,7 @@ def _render_profile(preference_form=None, status=200):
             preferences=preferences,
             preference_total=sum(len(rows) for rows in preferences.values()),
             preference_form=preference_form or PreferenceForm(),
+            preference_suggestions=preference_suggestions(),
         ),
         status,
     )

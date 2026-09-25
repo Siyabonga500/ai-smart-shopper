@@ -25,20 +25,22 @@ from sqlalchemy import select
 from app.extensions import db
 from app.models import Store, User
 from app.services.products import in_list_quantities, offer_to_card
-from app.services.recommendations import is_recommended, preference_profile, purchase_history
+from app.services.recommendations import is_recommended, preference_profile, preference_reasons, purchase_history
 from app.services.retail_api import Product, RetailProvider, group_by_barcode
 from app.services.shopping import student_center
 from app.utils.geo import distance_km
 from app.utils.money import parse_amount
 
-SORTS = ("lowest", "highest", "closest", "az", "store")
+SORTS = ("preferred", "lowest", "highest", "closest", "az", "store")
 SORT_LABELS = {
+    "preferred": "My preferences first",
     "lowest": "Lowest price",
     "highest": "Highest price",
     "closest": "Closest store",
     "az": "A to Z",
     "store": "Store name",
 }
+AUTO_SORT = "auto"  # nothing chosen: preferences first when the student saved any, else the lowest price
 MAX_QUERY_LENGTH = 100
 MAX_STORE_FILTERS = 40
 
@@ -51,7 +53,7 @@ class SearchParams:
     max_price: Decimal | None = None
     store_ids: list[str] = field(default_factory=list)
     radius_km: float = 5.0
-    sort: str = "lowest"
+    sort: str = AUTO_SORT
     page: int = 1
 
 
@@ -63,6 +65,7 @@ class SearchResult:
     pages: int
     radius_km: float
     center: dict
+    sort: str = "lowest"  # the order actually used
 
     def to_dict(self, query: str = "") -> dict:
         return {
@@ -72,6 +75,7 @@ class SearchResult:
             "pages": self.pages,
             "radius_km": self.radius_km,
             "center": self.center,
+            "sort": self.sort,
             "results": self.cards,
         }
 
@@ -110,13 +114,13 @@ def parse_search_params(args) -> tuple[SearchParams, dict]:
             radius = float(raw_radius)
         except ValueError:
             radius = float("nan")
-        if not math.isfinite(radius) or radius <= 0:
+        if not math.isfinite(radius) or radius < 0:
             errors["radius"] = "Distance must be a number of kilometres."
         else:
             params.radius_km = min(radius, float(cfg["SEARCH_MAX_RADIUS_KM"]))
 
-    sort = (args.get("sort") or "lowest").strip().lower()
-    if sort not in SORTS:
+    sort = (args.get("sort") or AUTO_SORT).strip().lower()
+    if sort not in SORTS and sort != AUTO_SORT:
         errors["sort"] = "Unknown sort order."
     else:
         params.sort = sort
@@ -150,6 +154,8 @@ def _sort_key(sort: str):
         )
     if sort == "az":
         return lambda c: (c["name"].casefold(), Decimal(c["price"]), c["store_name"] or "")
+    if sort == "preferred":
+        return lambda c: (0 if c.get("preferred") else 1, Decimal(c["price"]), c["name"].casefold())
     if sort == "store":
         return lambda c: ((c["store_name"] or "").casefold(), Decimal(c["price"]), c["name"].casefold())
     return lambda c: (Decimal(c["price"]), c["name"].casefold(), c["store_name"] or "")
@@ -173,13 +179,17 @@ def run_search(provider: RetailProvider, user: User, params: SearchParams, activ
     """Search, filter, badge, sort and page. Raises the provider's ``RetailAPIError`` if it cannot answer."""
     cfg = current_app.config
     center = student_center(user)
-    if not params.q and not params.category:
-        return SearchResult([], 0, 1, 1, params.radius_km, center)
-
-    offers = [
-        with_distance(o, center)
-        for o in provider.search_products(params.q, center["lat"], center["lng"], params.radius_km, params.category)
-    ]
+    if params.q or params.category:
+        found = provider.search_products(params.q, center["lat"], center["lng"], params.radius_km, params.category)
+    else:  # "All" with no search words: every category, so the student can browse and filter if they like
+        found, seen = [], set()
+        for category in cfg["BUDGET_CATEGORIES"]:
+            for offer in provider.search_products("", center["lat"], center["lng"], params.radius_km, category):
+                identity = (offer.barcode, offer.store_name, offer.name)
+                if identity not in seen:
+                    seen.add(identity)
+                    found.append(offer)
+    offers = [with_distance(o, center) for o in found]
     offers = [o for o in offers if o.distance_km is None or o.distance_km <= params.radius_km]
 
     # Badges are decided on the whole distance-limited result, before the price and store filters.
@@ -202,6 +212,7 @@ def run_search(provider: RetailProvider, user: User, params: SearchParams, activ
         shown.append(offer)
 
     profile = preference_profile(user.UserId)
+    sort = params.sort if params.sort != AUTO_SORT else ("lowest" if profile.empty else "preferred")
     purchased = {p.key for p in purchase_history(user.UserId)}
     quantities = in_list_quantities(active_items)
     cards = []
@@ -212,10 +223,12 @@ def run_search(provider: RetailProvider, user: User, params: SearchParams, activ
             badges.append("CHEAPEST")
         if offer.in_stock and is_recommended(offer, profile, purchased, is_cheapest):
             badges.append("RECOMMENDED")
-        cards.append(offer_to_card(offer, badges, quantities))
+        card = offer_to_card(offer, badges, quantities)
+        card["preferred"] = preference_reasons(offer, profile)
+        cards.append(card)
 
-    cards.sort(key=_sort_key(params.sort))
+    cards.sort(key=_sort_key(sort))
     size = cfg["SEARCH_PAGE_SIZE"]
     pages = max(1, math.ceil(len(cards) / size))
     page = min(params.page, pages)
-    return SearchResult(cards[(page - 1) * size : page * size], len(cards), page, pages, params.radius_km, center)
+    return SearchResult(cards[(page - 1) * size : page * size], len(cards), page, pages, params.radius_km, center, sort)

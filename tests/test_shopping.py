@@ -300,7 +300,7 @@ def test_search_parameter_validation(app):
         ({"max_price": "-1"}, "max_price"),
         ({"min_price": "50", "max_price": "10"}, "max_price"),
         ({"radius": "far"}, "radius"),
-        ({"radius": "0"}, "radius"),
+        ({"radius": "-1"}, "radius"),
         ({"radius": "nan"}, "radius"),
         ({"sort": "random"}, "sort"),
         ({"page": "x"}, "page"),
@@ -320,9 +320,15 @@ def test_api_search_returns_badged_cards_within_the_radius(signed_in, user, budg
     )
 
 
-def test_search_without_query_or_category_is_empty_not_an_error(signed_in):
+def test_all_without_search_words_shows_every_category(signed_in):
     data = signed_in.get("/api/search").get_json()
-    assert data["total"] == 0 and data["results"] == []
+    assert data["total"] > 0
+    categories = {c["category"] for c in signed_in.get("/api/search?page=1&sort=az").get_json()["results"]}
+    assert categories  # the first page of an A-Z browse
+    every = set()
+    for page in range(1, data["pages"] + 1):
+        every |= {c["category"] for c in signed_in.get(f"/api/search?page={page}").get_json()["results"]}
+    assert every == {"Grocery", "Toiletries", "Clothes"}
 
 
 def test_category_alone_lists_that_category(signed_in):

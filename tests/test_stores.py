@@ -201,7 +201,7 @@ def test_endpoint_defaults_to_the_users_address_then_to_durban(app, client, make
 
 
 def test_endpoint_caps_the_radius(client, signed_in, seeded):
-    assert _near(client, lat=-29.86, lng=31.02, radius=9999).get_json()["radius_km"] == 50
+    assert _near(client, lat=-29.86, lng=31.02, radius=9999).get_json()["radius_km"] == 60
 
 
 @pytest.mark.parametrize(
@@ -231,7 +231,7 @@ def test_endpoint_brand_filter(client, signed_in, seeded):
 def test_search_page_offers_the_nearby_stores_as_a_filter(client, signed_in):
     html = client.get("/search").get_data(as_text=True)
     assert 'id="store-filter"' in html and "/api/stores/near" in html and 'id="radius"' in html
-    assert 'data-radius-max="15"' in html
+    assert 'data-radius-max="60"' in html and 'min="0"' in html  # the Distance filter goes from 0 to 60 km
 
 
 def test_the_stores_the_search_page_lists_are_centred_on_the_users_address(client, make_user, login, seeded):

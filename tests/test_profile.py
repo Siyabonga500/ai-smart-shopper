@@ -259,7 +259,7 @@ def test_profile_shows_total_saved_preferences(client, me):
     client.post("/profile/preferences", data={"PreferenceType": "Brand", "PreferenceValue": "Albany"})
     client.post("/profile/preferences", data={"PreferenceType": "Store", "PreferenceValue": "Checkers"})
     html = client.get("/profile").get_data(as_text=True)
-    assert "2 saved" in html and "personalise recommendations" in html
+    assert "2 saved" in html and "personalise your recommendations" in html and "Matches your preferences" in html
 
 
 def test_preference_validation_and_duplicates(client, me):

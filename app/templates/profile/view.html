@@ -113,10 +113,13 @@
                 {{ preference_form.csrf_token }}
                 <h3 class="h6">Add a preference</h3>
                 {{ select(preference_form.PreferenceType) }}
-                {{ control(preference_form.PreferenceValue, placeholder="e.g. Vegetarian, Albany, Checkers", maxlength=100) }}
+                {{ control(preference_form.PreferenceValue, placeholder="Start typing or pick from the list", maxlength=100, list="pref-suggestions",
+                           hint="Suggestions follow the type you chose, e.g. Checkers for Store or Clover for Brand.") }}
+                <datalist id="pref-suggestions"></datalist>
+                <script type="application/json" id="pref-suggestions-data">{{ preference_suggestions|tojson }}</script>
                 <button class="btn btn-outline-brand" type="submit"><i class="bi bi-plus-lg me-1"></i>Add</button>
               </form>
-              <p class="small text-muted-ink mt-3 mb-0"><i class="bi bi-lightbulb me-1"></i>Saved preferences are used to personalise recommendations.</p>
+              <p class="small text-muted-ink mt-3 mb-0"><i class="bi bi-lightbulb me-1"></i>Saved preferences personalise your recommendations, and search shows products that match them first, marked “Matches your preferences”.</p>
             </div>
           </div>
         </div>
@@ -124,3 +127,5 @@
     </div>
   </div>
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/preferences.js') }}"></script>{% endblock %}

@@ -567,3 +567,6 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); }
   margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, .15); color: rgba(255, 255, 255, .7); }
 .message-body { white-space: pre-line; }
 .border-brand { border: 1px solid var(--brand) !important; }
+.product-pref { font-size: var(--fs-xs); color: var(--accent-ink); background: #FDEBDD; border-radius: .4rem; padding: .15rem .45rem;
+  margin: .2rem 0; }
+.product-pref .bi { color: var(--accent); }

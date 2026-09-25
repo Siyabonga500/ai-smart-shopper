@@ -81,7 +81,7 @@
         <div class="collapse d-lg-block" id="filters">
           <div class="card app-card"><div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <h2 class="h6 fw-bold mb-0">Filters</h2>
+              <h2 class="h6 fw-bold mb-0">Filters <span class="fw-normal small text-muted-ink">(optional)</span></h2>
               <button type="button" class="btn btn-link btn-sm p-0" id="reset-filters">Reset</button>
             </div>
 
@@ -99,7 +99,9 @@
             <div class="mb-3">
               <label class="form-label small fw-600 d-flex justify-content-between mb-1" for="radius">
                 <span>Distance</span><span class="text-muted-ink">Within <output id="radius-out" for="radius">{{ radius_default }}</output> km</span></label>
-              <input type="range" class="form-range" id="radius" min="1" max="{{ radius_max }}" step="1" value="{{ radius_default }}">
+              <input type="range" class="form-range" id="radius" min="0" max="{{ radius_max }}" step="1" value="{{ radius_default }}"
+                     aria-describedby="radius-hint">
+              <div class="d-flex justify-content-between small text-muted-ink" id="radius-hint"><span>0 km</span><span>{{ radius_max }} km</span></div>
             </div>
 
             <fieldset class="mb-0">
@@ -114,7 +116,7 @@
       {# Results #}
       <div class="col-lg-9">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-          <div class="small text-muted-ink" id="status" role="status" aria-live="polite">Search for a product or pick a category.</div>
+          <div class="small text-muted-ink" id="status" role="status" aria-live="polite">Loading products…</div>
           <div class="d-flex align-items-center gap-2">
             <label class="small text-muted-ink mb-0" for="sort">Sort</label>
             <select class="form-select form-select-sm w-auto" id="sort">
@@ -125,7 +127,7 @@
         <div class="product-grid" id="results" aria-busy="false"></div>
         <div class="empty-state" id="empty" hidden>
           <i class="bi bi-search"></i>
-          <p class="mt-2 mb-0" id="empty-text">Search for a product or pick a category to compare prices near you.</p>
+          <p class="mt-2 mb-0" id="empty-text">No products to show yet.</p>
         </div>
         <div class="text-center mt-3"><button type="button" class="btn btn-outline-brand" id="load-more" hidden>Show more</button></div>
       </div>

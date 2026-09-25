@@ -24,6 +24,48 @@ class PreferenceProfile:
     stores: frozenset
     brands: frozenset
     categories: frozenset
+    dietary: frozenset = frozenset()
+
+    @property
+    def empty(self) -> bool:
+        return not (self.stores or self.brands or self.categories or self.dietary)
+
+
+# Words in a product name that satisfy a dietary preference (anything else is matched by the word itself).
+DIETARY_WORDS = {
+    "vegetarian": ("vegetarian", "veggie", "soya", "plant"),
+    "vegan": ("vegan", "plant based", "plant-based"),
+    "halaal": ("halaal", "halal"),
+    "halal": ("halaal", "halal"),
+    "kosher": ("kosher",),
+    "gluten free": ("gluten free", "gluten-free"),
+    "lactose free": ("lactose free", "lactose-free"),
+    "sugar free": ("sugar free", "sugar-free", "no sugar", "no added sugar"),
+    "low fat": ("low fat", "low-fat", "lite", "light", "fat free"),
+}
+DIETARY_CHOICES = ("Vegetarian", "Vegan", "Halaal", "Kosher", "Gluten free", "Lactose free", "Sugar free", "Low fat")
+CATEGORY_ALIASES = {"clothing": "clothes"}
+
+
+def preference_reasons(offer: Product, profile: PreferenceProfile) -> list[str]:
+    """Which of the student's saved preferences this offer matches, e.g. ``["Your store: Checkers"]``."""
+    if profile.empty:
+        return []
+    reasons = []
+    places = {(offer.retailer or "").casefold(), (offer.store_name or "").casefold()}
+    store = next((s for s in profile.stores if s and any(s == p or s in p for p in places if p)), None)
+    if store:
+        reasons.append(f"Your store: {offer.retailer or offer.store_name}")
+    if offer.brand and offer.brand.casefold() in profile.brands:
+        reasons.append(f"Your brand: {offer.brand}")
+    category = (offer.category or "").casefold()
+    if category and category in {CATEGORY_ALIASES.get(c, c) for c in profile.categories}:
+        reasons.append(f"Your category: {offer.category}")
+    name = offer.name.casefold()
+    for diet in sorted(profile.dietary):
+        if any(word in name for word in DIETARY_WORDS.get(diet, (diet,))):
+            reasons.append(f"Dietary: {diet.capitalize()}")
+    return reasons
 
 
 @dataclass(frozen=True)
@@ -37,12 +79,14 @@ class PurchaseSummary:
 
 
 def preference_profile(user_id: str) -> PreferenceProfile:
-    found = {"store": set(), "brand": set(), "category": set()}
+    found = {"store": set(), "brand": set(), "category": set(), "dietary": set()}
     for pref in db.session.scalars(select(Preference).where(Preference.UserId == user_id)):
         bucket = found.get((pref.PreferenceType or "").strip().casefold())
         if bucket is not None:
             bucket.add((pref.PreferenceValue or "").strip().casefold())
-    return PreferenceProfile(frozenset(found["store"]), frozenset(found["brand"]), frozenset(found["category"]))
+    return PreferenceProfile(
+        frozenset(found["store"]), frozenset(found["brand"]), frozenset(found["category"]), frozenset(found["dietary"])
+    )
 
 
 def purchase_history(user_id: str) -> list[PurchaseSummary]:
@@ -79,3 +123,20 @@ def purchase_tag(last_purchased: datetime, now: datetime | None = None) -> str:
     days = current_app.config["RECENT_PURCHASE_DAYS"]
     age = (now or utcnow()) - last_purchased
     return "Recently purchased" if age <= timedelta(days=days) else "Lastly purchased"
+
+
+def preference_suggestions() -> dict[str, list[str]]:
+    """What the "Add a preference" box suggests for each type: real stores, brands and categories from the app."""
+    from app.data.durban_stores import ALL_STORES
+    from app.data.mock_products import CATALOGUE
+    from app.models import CatalogueProduct, Store
+
+    stores = {seed.brand for seed in ALL_STORES} | set(db.session.scalars(select(Store.Brand).distinct()))
+    brands = {item.brand for item in CATALOGUE if item.brand not in ("Fresh", "Generic")}
+    brands |= {b for b in db.session.scalars(select(CatalogueProduct.Brand).distinct()) if b}
+    return {
+        "Dietary": list(DIETARY_CHOICES),
+        "Brand": sorted(brands, key=str.casefold),
+        "Store": sorted(stores, key=str.casefold),
+        "Category": [("Clothing" if c == "Clothes" else c) for c in current_app.config["BUDGET_CATEGORIES"]],
+    }

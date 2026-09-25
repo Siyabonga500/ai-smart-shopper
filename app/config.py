@@ -193,7 +193,7 @@ class BaseConfig:
 
     # --- Stores API (Step 7) ---------------------------------------------------------
     STORE_DEFAULT_RADIUS_KM = 10
-    STORE_MAX_RADIUS_KM = 50
+    STORE_MAX_RADIUS_KM = 60
 
     # --- Brand colours (keep in sync with static/css/app.css :root) ---------
     THEME = {"primary": "#2C666E", "surface": "#F0EDEE"}
@@ -222,7 +222,7 @@ class BaseConfig:
     MAX_ITEM_QUANTITY = 99
 
     # --- Search / shopping list (Steps 11-12) -------------------------------------
-    SEARCH_MAX_RADIUS_KM = 15  # "Distance (slider up to 15 km)"
+    SEARCH_MAX_RADIUS_KM = 60  # the Distance filter goes from 0 to 60 km
     SEARCH_PAGE_SIZE = 24
     ALTERNATIVES_TTL = 15 * 60  # re-check a list item's cheaper alternative after this many seconds
     RECENT_PURCHASE_DAYS = 30  # "Recently purchased" tag; older purchases are tagged "Lastly purchased"
@@ -252,7 +252,7 @@ class BaseConfig:
     # --- Maps: Durban is the default centre (Leaflet + OpenStreetMap) -------
     DEFAULT_MAP_CENTER = {"lat": -29.8587, "lng": 31.0218}
     DEFAULT_MAP_ZOOM = 12
-    DEFAULT_SEARCH_RADIUS_KM = 5  # PDF Search view: "Within 5 km" filter
+    DEFAULT_SEARCH_RADIUS_KM = 60  # no distance filter until the student sets one (filters are optional)
     MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
