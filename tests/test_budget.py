@@ -539,11 +539,11 @@ def test_scenario_over_budget_list_still_accepts_items_but_cannot_proceed(client
     user = UserFactory()
     login(user)
     budget = BudgetFactory(user=user, entries=[("Grocery", D("100"))])
-    ListItemFactory(budget=budget, price="60.00")
+    ListItemFactory(budget=budget, price="60.00", collected=True)
     page = client.get("/list").get_data(as_text=True)
-    assert 'href="/list/summary"' in page  # R60 of R100: can proceed
+    assert 'href="/list/summary"' in page  # R60 of R100, ticked as purchased: can proceed
 
-    ListItemFactory(budget=budget, price="60.00")  # R120 of R100: adding was not blocked
+    ListItemFactory(budget=budget, price="60.00", collected=True)  # R120 of R100: adding was not blocked
     assert budgets.position(budget).is_over
     page = client.get("/list").get_data(as_text=True)
     assert 'href="/list/summary"' not in page

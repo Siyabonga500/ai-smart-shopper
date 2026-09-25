@@ -47,10 +47,13 @@ def offers(provider, barcode=MILK, in_stock=True):
     return sorted([o for o in found if o.in_stock or not in_stock], key=lambda o: (o.price, o.store_name))
 
 
-def add(user, offer, qty=1):
+def add(user, offer, qty=1, purchased=True):
+    """Put ``offer`` on the list. Ticked as purchased by default: the summary and Done need every item ticked."""
     result = shopping.add_product(user, offer)
     if qty > 1:
         shopping.set_quantity(user, result.item.ListItemId, qty)
+    if purchased:
+        shopping.set_collected(user, result.item.ListItemId, True)
     return result.item
 
 

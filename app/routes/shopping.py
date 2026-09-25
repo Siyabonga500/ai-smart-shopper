@@ -23,6 +23,16 @@ legacy_bp = Blueprint("shopping_legacy", __name__)
 OVER_BUDGET_HINT = "Your shopping list is over budget. Replace items with cheaper alternatives or reduce quantities."
 
 
+def not_purchased_hint(names: list[str]) -> str:
+    """Why "Proceed to Summary" is off while items are not ticked as purchased."""
+    count = len(names)
+    return (
+        f"{count} item{'' if count == 1 else 's'} {'is' if count == 1 else 'are'} not marked as purchased: "
+        f"{', '.join(names)}. Mark {'it' if count == 1 else 'each one'} as purchased, or delete "
+        f"{'it' if count == 1 else 'them'} from your list, before you proceed to the summary."
+    )
+
+
 @legacy_bp.get("/shopping")
 @legacy_bp.get("/shopping/")
 def old_address():
@@ -46,6 +56,7 @@ def _context(want_alternatives: bool) -> dict:
     rows = [shopping.item_to_dict(item, center) for item in items]
     savings = shopping.potential_savings(items)
     over = position.is_over
+    pending = [row["name"] for row in rows if not row["collected"]]  # not ticked as purchased yet
     return {
         "budget": budget,
         "shopping_list": shopping_list,
@@ -56,8 +67,8 @@ def _context(want_alternatives: bool) -> dict:
         "savings": savings,
         "alternatives_available": sum(1 for row in rows if row["alternative"]),
         "category_rows": budgets.category_rows(budget),
-        "can_proceed": bool(rows) and not over,
-        "over_hint": OVER_BUDGET_HINT,
+        "can_proceed": bool(rows) and not over and not pending,
+        "over_hint": OVER_BUDGET_HINT if over else not_purchased_hint(pending),
         "max_quantity": current_app.config["MAX_ITEM_QUANTITY"],
         "collected_count": sum(1 for row in rows if row["collected"]),
     }
@@ -99,6 +110,10 @@ def summary():
     if position.is_over:
         flash(OVER_BUDGET_HINT, "warning")
         return redirect(url_for("shopping.index"))
+    pending = [item.ItemName for item in items if not item.IsCollected]
+    if pending:
+        flash(not_purchased_hint(pending), "warning")
+        return redirect(url_for("shopping.index"))
 
     home = shopping.student_center(current_user)
     return_home = current_app.config["ROUTE_RETURN_HOME"]
@@ -108,7 +123,6 @@ def summary():
     position_of = {name.casefold(): index for index, name in enumerate(order, 1)}
     return render_template(
         "shopping/summary.html",
-        not_collected=[item.ItemName for item in items if not item.IsCollected],
         budget=budget,
         shopping_list=shopping_list,
         position=position,
@@ -126,6 +140,10 @@ def complete():
     """ "Done - Purchase Completed": one transaction closes the list and the budget and records the purchases."""
     active = budgets.get_active_budget(current_user.UserId)
     title = active.Title if active else ""
+    pending = [i.ItemName for i in budgets.list_items(budgets.get_active_list(active)) if not i.IsCollected]
+    if pending:
+        flash(not_purchased_hint(pending), "warning")
+        return redirect(url_for("shopping.index"))
     try:
         budget = budgets.complete_purchase(current_user.UserId)
     except budgets.BudgetError as error:

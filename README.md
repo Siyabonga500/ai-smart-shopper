@@ -16,8 +16,8 @@ Rules the app is built around:
   us** has a **Contact us** form whose messages admins read under **Admin > Messages** (`CONTACT_EMAIL`,
   `CONTACT_PHONE`, `CONTACT_ADDRESS`, `CONTACT_HOURS` set the details shown). Every page ends with the same footer.
 - The shopping list shows a map of the stores to travel to, redrawn as items change.
-- On the shopping list each item has a **Purchased** button to tick it off in the shop before "Done – Purchase
-  Completed". After Done, the student sees how much they used and how much they saved from the budget.
+- On the shopping list each item has a **Purchased** button to tick it off in the shop. "Proceed to Summary" (and
+  "Done – Purchase Completed") stay blocked until every item is ticked as purchased or deleted from the list. After Done, the student sees how much they used and how much they saved from the budget.
 - A list that is **over budget** still accepts new items, but "Proceed to Summary" is disabled until it fits.
 - A **Combined Budget** and individual category budgets (Grocery, Toiletries, Clothes) are mutually exclusive.
 - Products with the **same barcode** are the same product and are grouped so their prices can be compared.

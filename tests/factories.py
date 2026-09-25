@@ -110,9 +110,10 @@ class ListItemFactory(factory.Factory):
     store = "Checkers Gateway"
     barcode = factory.Sequence(lambda n: f"600000000{n:04d}")
     purchased = False
+    collected = False  # ticked with the list's "Purchased" button
 
     @classmethod
-    def _create(cls, model_class, budget, name, price, qty, category, store, barcode, purchased):
+    def _create(cls, model_class, budget, name, price, qty, category, store, barcode, purchased, collected):
         shopping_list = budgets.ensure_active_list(budget)
         sub = budgets.sub_budget_for(budget, category)
         item = ListItem(
@@ -125,6 +126,7 @@ class ListItemFactory(factory.Factory):
             StoreName=store,
             BarCode=barcode,
             IsPurchased=purchased,
+            IsCollected=collected,
             SubBudgetId=sub.SubBudgetId if sub else None,
         )
         db.session.add(item)

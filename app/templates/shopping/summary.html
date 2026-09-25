@@ -112,11 +112,7 @@
         <div class="modal-body">
           <p>This closes <strong class="text-break">{{ budget.Title }}</strong> and its shopping list, and saves the
              {{ invoice.item_count }} item{{ '' if invoice.item_count == 1 else 's' }} ({{ invoice.total|zar }}) to your history.</p>
-          {% if not_collected %}
-            <div class="notice-warn mb-2" role="note"><i class="bi bi-exclamation-triangle me-1"></i>{{ not_collected|length }} item{{ ' is' if not_collected|length == 1 else 's are' }} not marked as purchased on your list yet: {{ not_collected|join(', ') }}. Done records the whole list as bought.</div>
-          {% else %}
-            <p class="small text-success-strong fw-600"><i class="bi bi-check-circle-fill me-1"></i>Every item is marked as purchased.</p>
-          {% endif %}
+          <p class="small text-success-strong fw-600"><i class="bi bi-check-circle-fill me-1"></i>Every item is marked as purchased.</p>
           <p class="small text-muted-ink mb-0">You cannot change the list after this. You can reorder it from History later.</p>
         </div>
         <div class="modal-footer">
