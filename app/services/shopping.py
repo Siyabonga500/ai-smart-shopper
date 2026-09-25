@@ -220,6 +220,18 @@ def set_quantity(user: User, item_id: str, quantity: int) -> tuple[ListItem, bud
     return item, pos
 
 
+def set_collected(user: User, item_id: str, collected: bool) -> ListItem:
+    """Tick an item off as purchased in the shop (or untick it). Only tracking: "Done" still closes the whole list."""
+    item, _, _ = _owned_active_item(user, item_id)
+    try:
+        item.IsCollected = bool(collected)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return item
+
+
 def remove_item(user: User, item_id: str) -> budgets.BudgetPosition:
     item, _, budget = _owned_active_item(user, item_id)
     try:
@@ -453,6 +465,7 @@ def item_to_dict(item: ListItem, center: dict) -> dict:
         "distance_km": item_distance(item, center),
         "alternative": ({**alt, "line_saving": str(item_saving(item))} if alt else None),
         "replaced": (item.CheaperAlternativeJSON or {}).get("replaced"),
+        "collected": bool(item.IsCollected),
     }
 
 

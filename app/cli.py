@@ -261,7 +261,7 @@ def register_cli(app) -> None:
     @click.option("--lat", type=float, help="Latitude (default: Durban centre).")
     @click.option("--lng", type=float, help="Longitude (default: Durban centre).")
     @click.option("--radius", type=float, default=None, help="Kilometres (default: RETAIL_DEFAULT_RADIUS_KM).")
-    @click.option("--category", help="Grocery, Toiletries, Clothes or Electronics.")
+    @click.option("--category", help="Grocery, Toiletries or Clothes.")
     def retail_search(query, lat, lng, radius, category):
         """Try the configured retail provider (RETAIL_PROVIDER) from the command line."""
         from app.services.http import ExternalAPIError

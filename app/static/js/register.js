@@ -37,7 +37,10 @@
       if (!v) return "Enter your email address.";
       if (v.length > 100) return "Email address is too long.";
       var result = Rules.validateEmail(v);
-      return result.valid ? "" : result.error;
+      if (!result.valid) return result.error;
+      var domain = form.getAttribute("data-email-domain");
+      if (domain && v.toLowerCase().slice(-(domain.length + 1)) !== "@" + domain) return "Use your DUT student email, for example 22226534@" + domain + ".";
+      return "";
     },
     CellphoneNumber: function (v) {
       if (!Rules.cleanPhone(v)) return "Enter your cellphone number.";
@@ -45,9 +48,9 @@
       return result.valid ? "" : result.error;
     },
     SAIdNumber: function (v) {
-      if (!SAId.clean(v)) return "Enter your 13-digit ID number.";
-      var result = SAId.parse(v);
-      return result.valid ? "" : result.error;
+      var digits = SAId.clean(v);
+      if (!digits) return "Enter your 13-digit ID number.";
+      return /^[0-9]{13}$/.test(digits) ? "" : "ID number must be exactly 13 digits.";
     },
     Race: function (v) { return v ? "" : "Select an option."; },
     ResidentialAddress: function (v) {
@@ -129,7 +132,10 @@
   }
   if (el("SAIdNumber")) {
     el("SAIdNumber").addEventListener("input", function () {
-      // keep digits only (people paste "800101 5009 087"): the server ignores spaces as well
+      // Digits only, and typing stops at 13 (pasting "800101 5009 087" keeps the 13 digits).
+      var field = el("SAIdNumber");
+      var digits = field.value.replace(/[^0-9]/g, "").slice(0, 13);
+      if (field.value !== digits) field.value = digits;
       describeId();
     });
     describeId();

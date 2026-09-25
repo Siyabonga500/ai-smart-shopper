@@ -53,6 +53,7 @@ def remove():
 def _render_new(parsed=None, status: int = 200):
     user_id = current_user.UserId
     cfg = current_app.config
+    room = budgets.allowance_room(user_id)
     active = budgets.get_active_budget(user_id)
     replaces = None
     if active is not None:
@@ -82,7 +83,8 @@ def _render_new(parsed=None, status: int = 200):
             replaces=replaces,
             categories=list(cfg["BUDGET_CATEGORIES"]),
             combined_key=budgets.COMBINED,
-            nsfas=budgets.nsfas_notice(total),
+            nsfas=budgets.nsfas_notice(total, room.room),
+            room=room,
             max_amount=cfg["MAX_BUDGET_AMOUNT"],
             title_max=budgets.TITLE_MAX,
             total=total,
@@ -105,14 +107,16 @@ def new():
     if request.method == "GET":
         return _render_new()
 
-    parsed = budgets.parse_budget_form(request.form, defaults_title=default_budget_title())
+    room = budgets.allowance_room(current_user.UserId)
+    parsed = budgets.parse_budget_form(request.form, defaults_title=default_budget_title(), room=room)
     if not parsed.ok:
         return _render_new(parsed, status=400)
 
-    budget = budgets.create_budget(current_user.UserId, parsed.title, parsed.entries)
+    try:
+        budget = budgets.create_budget(current_user.UserId, parsed.title, parsed.entries)
+    except budgets.BudgetError as error:
+        parsed.errors["form"] = str(error)
+        return _render_new(parsed, status=400)
     reset_request_cache()
-    warning = budgets.nsfas_notice(budget.TotalAmount)["warning"]
     flash(f"“{budget.Title}” is saved and active: {format_zar(budget.TotalAmount)} in total.", "success")
-    if warning:
-        flash(warning + " This is only a reference, so your budget was saved as you set it.", "warning")
     return redirect(url_for("budget.index"))

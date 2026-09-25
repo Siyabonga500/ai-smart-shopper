@@ -57,7 +57,7 @@ RETAILERS = ("Checkers", "Pick n Pay", "Shoprite", "Woolworths", "SPAR")
 PLACEHOLDER_IMAGE = "/static/img/product-placeholder.svg"
 # The built-in catalogue has invented barcodes, so no real photo exists for it: show a picture of the aisle instead.
 CATEGORY_PLACEHOLDERS = {
-    name: f"/static/img/placeholders/{name.lower()}.svg" for name in ("Grocery", "Toiletries", "Clothes", "Electronics")
+    name: f"/static/img/placeholders/{name.lower()}.svg" for name in ("Grocery", "Toiletries", "Clothes")
 }
 
 _RETAILER_ALIASES = {

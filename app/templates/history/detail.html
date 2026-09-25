@@ -21,6 +21,18 @@
       <span class="status-pill flex-shrink-0">{{ trip.item_count }} item{{ '' if trip.item_count == 1 else 's' }}</span>
     </div></section>
 
+    {% set result = trip.outcome %}
+    {% if result %}
+      <section class="card app-card mb-3" aria-label="Budget outcome"><div class="card-body">
+        <div class="row text-center g-2">
+          <div class="col-4"><div class="small text-muted-ink">Budgeted</div><div class="fw-bold tabular">{{ price(result.budgeted) }}</div></div>
+          <div class="col-4"><div class="small text-muted-ink">Used</div><div class="fw-bold tabular">{{ price(result.used) }}</div></div>
+          <div class="col-4"><div class="small text-muted-ink">Saved</div><div class="fw-bold tabular text-success-strong">{{ price(result.saved) }}</div></div>
+        </div>
+        <p class="small mb-0 mt-2 text-center" data-outcome>{{ result.message() }}</p>
+      </div></section>
+    {% endif %}
+
     {# The trip on the map: from the student's residence to every store they bought from, in visiting order #}
     <section class="card app-card mb-3" aria-labelledby="route-title"><div class="card-body">
       <h2 class="h6 fw-bold mb-2" id="route-title">Your trip route</h2>

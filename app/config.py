@@ -79,6 +79,9 @@ class BaseConfig:
     MICROSOFT_CLIENT_SECRET = _env_first("MICROSOFT_CLIENT_SECRET", "MS_CLIENT_SECRET")
     MICROSOFT_TENANT = os.getenv("MICROSOFT_TENANT") or "common"
 
+    # --- Sign-up: only DUT student addresses (e.g. 22226534@dut4life.ac.za). Empty = any address.
+    STUDENT_EMAIL_DOMAIN = (os.getenv("STUDENT_EMAIL_DOMAIN", "dut4life.ac.za") or "").strip().lower().lstrip("@")
+
     # --- Sign-up validation: also ask DNS whether the email's domain exists (off by default; tests never hit DNS)
     EMAIL_DNS_CHECK = _env_bool("EMAIL_DNS_CHECK")
 
@@ -194,14 +197,14 @@ class BaseConfig:
     CURRENCY_SYMBOL = "R"
 
     # NSFAS meal-allowance REFERENCE (PDF: Budget View section D, Set Budget
-    # View section A). This is a WARNING threshold only: exceeding it must
-    # never block the student from creating or saving a budget.
+    # View section A). A hard monthly limit: a budget above what is left of it
+    # this month cannot be saved (app.services.budgets.allowance_room).
     NSFAS_MONTHLY_ALLOWANCE = Decimal("1750.00")
 
     # --- Budget categories (PDF: Set Budget View section C) ----------------
     # "Combined" is mutually exclusive with the individual categories
     # (PDF: Set Budget View section D).
-    BUDGET_CATEGORIES = ("Grocery", "Toiletries", "Clothes", "Electronics")
+    BUDGET_CATEGORIES = ("Grocery", "Toiletries", "Clothes")
     COMBINED_BUDGET_CATEGORY = "Combined"
 
     # --- Dashboard / Budget view sizing (PDF) -----------------------------

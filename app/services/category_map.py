@@ -1,7 +1,7 @@
 """Category mappings (Step 16): what a retail API calls a category -> the categories this app budgets by.
 
 Apify and Parse.bot return whatever category text the retailer uses ("Fresh Milk & Dairy", "Health & Beauty").
-An admin maps each of those names to one of Grocery, Toiletries, Clothes, Electronics or Combined and, from then
+An admin maps each of those names to one of Grocery, Toiletries, Clothes or Combined and, from then
 on, every product the retail provider returns carries the mapped category (the provider applies the table each
 time it answers, so a change takes effect within a minute without clearing any cache).
 

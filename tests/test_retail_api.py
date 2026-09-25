@@ -46,7 +46,7 @@ def test_catalogue_has_about_two_hundred_realistic_products():
     names = " ".join(item.name for item in CATALOGUE)
     for brand in ("Ariel", "Albany", "Clover", "Nulaid", "Sunlight", "Colgate", "Dettol"):
         assert brand in names
-    assert {item.category for item in CATALOGUE} == {"Grocery", "Toiletries", "Clothes", "Electronics"}
+    assert {item.category for item in CATALOGUE} == {"Grocery", "Toiletries", "Clothes"}
 
 
 def test_catalogue_barcodes_are_unique_valid_ean13_in_the_reserved_range():
@@ -107,7 +107,8 @@ def test_search_defaults_to_browsing_the_catalogue_and_includes_clothes(mock):
     assert len(results) >= 20
     assert {p.category for p in results} >= {"Clothes"}
     assert {p.category for p in whitespace_results} >= {"Clothes"}
-    assert {p.category for p in mock.search_products("", *DURBAN, category="Electronics")} == {"Electronics"}
+    assert {p.category for p in mock.search_products("", *DURBAN, category="Toiletries")} == {"Toiletries"}
+    assert mock.search_products("", *DURBAN, category="Electronics") == []  # no longer a category
 
 
 def test_category_filter_is_case_insensitive_and_strict(mock):

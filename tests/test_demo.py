@@ -87,10 +87,10 @@ def test_nomvula_has_one_combined_budget_close_to_its_limit(app, seeded):
     assert len(stores) >= 2  # a trip with more than one stop, so the route means something
 
 
-def test_sipho_is_above_the_nsfas_reference_and_over_budget(app, seeded, client, login):
+def test_sipho_budgets_the_whole_nsfas_allowance_and_is_over_budget(app, seeded, client, login):
     user = by_email(SIPHO)
     budget = budgets.get_active_budget(user.UserId)
-    assert budget.TotalAmount == 1900 and budgets.nsfas_notice(budget.TotalAmount)["warning"]
+    assert budget.TotalAmount == 1750 and budgets.nsfas_notice(budget.TotalAmount)["warning"] is None
     assert budgets.position(budget).is_over
     login(user)
     page = client.get("/list").get_data(as_text=True)

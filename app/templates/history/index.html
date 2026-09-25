@@ -81,6 +81,7 @@
                   <div class="min-w-0 flex-grow-1">
                     <div class="fw-bold text-break text-dark">{{ trip.title }}</div>
                     <div class="small text-muted-ink">{{ trip.closed_on|sast_date }} · {{ trip.item_count }} item{{ '' if trip.item_count == 1 else 's' }} · {{ trip.store_count }} store{{ '' if trip.store_count == 1 else 's' }}</div>
+                    {% set result = trip.outcome %}{% if result and result.saved > 0 %}<div class="small fw-600 text-success-strong">Saved {{ price(result.saved) }} of {{ price(result.budgeted) }} budgeted</div>{% endif %}
                   </div>
                   <div class="trip-total tabular text-dark">{{ price(trip.total) }}</div>
                   <i class="bi bi-chevron-right text-muted-ink" aria-hidden="true"></i>

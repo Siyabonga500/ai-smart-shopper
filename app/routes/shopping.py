@@ -16,7 +16,6 @@ from app.services import budgets, routing, shopping
 from app.services.invoice import build_invoice
 from app.services.notifications import reset_request_cache
 from app.services.retail_api import RetailAPIError, RetailConfigError, get_retail_provider
-from app.utils.formatters import format_zar
 
 bp = Blueprint("shopping", __name__, url_prefix="/list")
 legacy_bp = Blueprint("shopping_legacy", __name__)
@@ -60,6 +59,7 @@ def _context(want_alternatives: bool) -> dict:
         "can_proceed": bool(rows) and not over,
         "over_hint": OVER_BUDGET_HINT,
         "max_quantity": current_app.config["MAX_ITEM_QUANTITY"],
+        "collected_count": sum(1 for row in rows if row["collected"]),
     }
 
 
@@ -108,6 +108,7 @@ def summary():
     position_of = {name.casefold(): index for index, name in enumerate(order, 1)}
     return render_template(
         "shopping/summary.html",
+        not_collected=[item.ItemName for item in items if not item.IsCollected],
         budget=budget,
         shopping_list=shopping_list,
         position=position,
@@ -125,15 +126,14 @@ def complete():
     """ "Done - Purchase Completed": one transaction closes the list and the budget and records the purchases."""
     active = budgets.get_active_budget(current_user.UserId)
     title = active.Title if active else ""
-    spent = budgets.position(active).in_list if active else None
     try:
-        budgets.complete_purchase(current_user.UserId)
+        budget = budgets.complete_purchase(current_user.UserId)
     except budgets.BudgetError as error:
         flash(str(error), "danger")
         return redirect(url_for("shopping.index"))
     reset_request_cache()
     flash(
-        f"Purchase completed. {format_zar(spent)} spent. “{title}” and its shopping list are now closed "
+        f"Purchase completed. {budgets.outcome(budget).message()} “{title}” and its shopping list are now closed "
         "and saved to your history.",
         "success",
     )

@@ -90,7 +90,7 @@ def parse_search_params(args) -> tuple[SearchParams, dict]:
     if category:
         match = next((c for c in cfg["BUDGET_CATEGORIES"] if c.casefold() == category.casefold()), None)
         if match is None:
-            errors["category"] = "Choose Grocery, Toiletries, Clothes or Electronics."
+            errors["category"] = "Choose Grocery, Toiletries or Clothes."
         params.category = match
 
     for name, attr in (("min_price", "min_price"), ("max_price", "max_price")):

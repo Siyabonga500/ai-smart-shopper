@@ -409,7 +409,7 @@ def test_editing_cannot_touch_email_id_or_password_fields(boss, student):
 # -------------------------------------------------------------------------------------------- categories
 def test_category_page_lists_the_targets(boss):
     html = boss.get("/admin/categories").get_data(as_text=True)
-    for name in ("Grocery", "Toiletries", "Clothes", "Electronics", "Combined"):
+    for name in ("Grocery", "Toiletries", "Clothes", "Combined"):
         assert name in html
 
 

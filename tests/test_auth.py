@@ -61,7 +61,7 @@ def test_successful_registration_creates_user_and_signs_them_in(client, registra
     assert response.headers["Location"].endswith("/dashboard")
 
     user = _only_user()
-    assert (user.FirstName, user.LastName, user.Email) == ("Thandi", "Nkosi", "thandi@example.com")
+    assert (user.FirstName, user.LastName, user.Email) == ("Thandi", "Nkosi", "22226534@dut4life.ac.za")
     assert user.CellphoneNumber == "0821234567"
     assert user.DateOfBirth == date(2002, 3, 15)
     assert user.Gender == "Female"  # derived from the ID because the field was blank
@@ -112,9 +112,9 @@ def test_editable_gender_wins_over_the_id(client, registration_data):
 
 
 def test_email_is_stored_lower_case(client, registration_data):
-    registration_data["Email"] = "  Thandi@Example.COM "
+    registration_data["Email"] = "  22226534@DUT4Life.AC.ZA "
     _register(client, registration_data)
-    assert _only_user().Email == "thandi@example.com"
+    assert _only_user().Email == "22226534@dut4life.ac.za"
 
 
 def test_out_of_range_pin_is_ignored_not_stored(client, registration_data):
@@ -135,7 +135,10 @@ def test_out_of_range_pin_is_ignored_not_stored(client, registration_data):
         ("CellphoneNumber", "082123", "10 digits"),
         ("CellphoneNumber", "08212345678", "10 digits"),
         ("SAIdNumber", "123", "13 digits"),
-        ("SAIdNumber", "8001015009088", "not valid"),
+        ("SAIdNumber", "12345678901234", "13 digits"),
+        ("SAIdNumber", "12345abc90123", "13 digits"),
+        ("Email", "thandi@example.com", "DUT student email"),
+        ("Email", "thandi@dut4life.ac.za.evil.com", "DUT student email"),
         ("Race", "", "Select an option"),
         ("Password", "weak", "Your password needs"),
         ("ConfirmPassword", "Different1!", "do not match"),
@@ -172,7 +175,7 @@ def test_unknown_residence_and_race_values_are_rejected(client, registration_dat
 
 
 def test_duplicate_email_is_refused_case_insensitively(client, registration_data, make_password_user):
-    make_password_user(email="Thandi@Example.com")
+    make_password_user(email="22226534@DUT4LIFE.ac.za")
     response = _register(client, registration_data)
     assert response.status_code == 200
     assert "already exists" in response.get_data(as_text=True)
@@ -476,3 +479,10 @@ def test_an_unknown_address_and_a_microsoft_only_account_both_spend_a_bcrypt_che
     client.post("/login", data={"Email": "nobody@example.com", "Password": "Str0ng!Pass"})
     client.post("/login", data={"Email": "microsoft@example.com", "Password": "Str0ng!Pass"})
     assert len(spent) == 2
+
+
+def test_any_13_digits_are_accepted_as_an_id_number(client, registration_data):
+    registration_data.update(SAIdNumber="1234567890123", Gender="Male")  # not a real SA ID: no date, bad check digit
+    assert _register(client, registration_data).status_code == 302
+    user = _only_user()
+    assert user.SAIdLast4 == "0123" and user.DateOfBirth is None and user.Gender == "Male"

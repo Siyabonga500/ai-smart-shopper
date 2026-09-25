@@ -16,7 +16,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class CatalogueItem:
     barcode: str
-    category: str  # Grocery | Toiletries | Clothes | Electronics  (the budget categories)
+    category: str  # Grocery | Toiletries | Clothes  (the budget categories)
     brand: str
     name: str
     price: str  # reference shelf price, ZAR
@@ -234,21 +234,6 @@ Clothes|Generic|Winter Beanie|49.99
 Clothes|Generic|Cotton Face Cloths 3-Pack|29.99
 Clothes|Generic|Bath Towel Cotton|99.99
 Clothes|Generic|Canvas Backpack 20L|249.99
-Electronics|Energizer|Energizer Max AA Batteries 4-Pack|64.99
-Electronics|Duracell|Duracell Plus AAA Batteries 4-Pack|69.99
-Electronics|Eveready|Eveready Gold AA Batteries 4-Pack|39.99
-Electronics|Generic|USB-C Charging Cable 1m|79.99
-Electronics|Generic|Micro-USB Charging Cable 1m|59.99
-Electronics|Generic|USB Wall Charger 2-Port 2.4A|119.99
-Electronics|Kingston|Kingston DataTraveler 32GB USB Flash Drive|129.99
-Electronics|SanDisk|SanDisk Ultra 64GB microSD Card|179.99
-Electronics|Casio|Casio fx-82ZA Plus Scientific Calculator|249.99
-Electronics|Eurolux|Eurolux LED Bulb 9W Warm White|39.99
-Electronics|Eurolux|Eurolux 4-Way Multiplug|89.99
-Electronics|Generic|Wired In-Ear Earphones|69.99
-Electronics|Generic|Power Bank 10000mAh|299.99
-Electronics|Generic|LED Rechargeable Torch|129.99
-Electronics|Generic|Optical USB Mouse|99.99
 """
 
 

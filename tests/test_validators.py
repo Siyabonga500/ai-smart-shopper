@@ -292,10 +292,9 @@ def test_registration_form_checks_dns_only_when_switched_on(app, client, registr
     assert "could not find that email domain" in body
 
 
-def test_registration_form_shows_the_citizenship_rule_inline(client, registration_data):
-    registration_data["SAIdNumber"] = make_sa_id("900215", "5123", citizen="2")
-    body = _register(client, registration_data).get_data(as_text=True)
-    assert "citizenship digit" in body
+def test_registration_accepts_any_13_digit_id_number(client, registration_data):
+    registration_data["SAIdNumber"] = make_sa_id("900215", "5123", citizen="2")  # citizenship digit 2: still accepted
+    assert _register(client, registration_data).status_code == 302
 
 
 def test_registration_form_names_the_missing_password_rules(client, registration_data):

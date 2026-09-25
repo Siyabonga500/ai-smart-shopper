@@ -205,7 +205,7 @@ def _check_nsfas_month(user_id: str, now: datetime | None) -> Notification | Non
         NSFAS_REFERENCE,
         "Above the monthly NSFAS reference",
         f"Your budgets this month add up to {format_zar(month.used)}, which is {format_zar(over)} above the "
-        f"{format_zar(reference)} NSFAS meal allowance reference. This is only a reminder; nothing is blocked.",
+        f"{format_zar(reference)} NSFAS meal allowance.",
         dedupe_key=f"nsfas:{today.year}-{today.month:02d}",
         url=url_for("budget.index"),
     )

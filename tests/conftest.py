@@ -110,7 +110,7 @@ def registration_data(sa_id):
     return {
         "FirstName": "Thandi",
         "LastName": "Nkosi",
-        "Email": "thandi@example.com",
+        "Email": "22226534@dut4life.ac.za",
         "CellphoneNumber": "0821234567",
         "SAIdNumber": sa_id("020315", "0123"),  # 15 March 2002, female
         "Gender": "",

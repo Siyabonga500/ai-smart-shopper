@@ -10,6 +10,7 @@
     PATCH  /api/list                 {"title": "..."}   rename the list
     POST   /api/list/items           {"barcode", "store_id"/"store_name", "name"}   add (or +1 quantity)
     PATCH  /api/list/items/<id>      {"quantity": n}
+    POST   /api/list/items/<id>/purchased  {"purchased": true|false}  tick an item off in the shop
     DELETE /api/list/items/<id>
     POST   /api/list/items/<id>/replace     take the cheaper alternative
 
@@ -276,6 +277,17 @@ def change_quantity(item_id):
     quantity = int(raw)
     item, position = shopping.set_quantity(current_user, item_id, quantity)
     return jsonify(shopping.list_state(current_user, position=position))
+
+
+@bp.post("/list/items/<item_id>/purchased")
+@login_required
+def mark_purchased(item_id):
+    """The list's "Purchased" button: ``{"purchased": true | false}`` ticks the item off (tracking only)."""
+    value = _payload().get("purchased", True)
+    if not isinstance(value, bool):
+        return _error("Send purchased: true or false.")
+    item = shopping.set_collected(current_user, item_id, value)
+    return jsonify(id=item.ListItemId, purchased=item.IsCollected, **shopping.list_state(current_user))
 
 
 @bp.delete("/list/items/<item_id>")

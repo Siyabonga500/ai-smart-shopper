@@ -1,6 +1,6 @@
 """SubBudget model - PDF pages 1-2 (fields) and page 19 (code).
 
-``Category`` is one of Grocery / Toiletries / Clothes / Electronics, or
+``Category`` is one of Grocery / Toiletries / Clothes, or
 "Combined". Combined and the individual categories are mutually exclusive
 within one Budget (PDF: Set Budget View, section D).
 """
@@ -17,7 +17,7 @@ class SubBudget(db.Model):
     SubBudgetId = db.Column(db.String(30), primary_key=True, default=lambda: generate_id(SUB_BUDGET_PREFIX))
     UserId = db.Column(db.String(30), db.ForeignKey("users.UserId", ondelete="CASCADE"), nullable=False)
     BudgetId = db.Column(db.String(30), db.ForeignKey("budgets.BudgetId", ondelete="CASCADE"), nullable=False)
-    Category = db.Column(db.String(50), nullable=False)  # e.g., Grocery, Toiletries, Clothes, Electronics, Combined
+    Category = db.Column(db.String(50), nullable=False)  # e.g., Grocery, Toiletries, Clothes, Combined
     AllocatedAmount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     UsedAmount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     IsActive = db.Column(db.Boolean, nullable=False, default=True)

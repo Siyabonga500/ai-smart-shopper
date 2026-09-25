@@ -77,6 +77,11 @@
     if (action === "inc") run(App.api(itemUrl(id), { method: "PATCH", body: { quantity: qty + 1 } }), focusKey);
     else if (action === "dec") run(App.api(itemUrl(id), { method: "PATCH", body: { quantity: qty - 1 } }), focusKey);
     else if (action === "remove") run(App.api(itemUrl(id), { method: "DELETE" }), null, "Removed " + name + ".");
+    else if (action === "purchased") {
+      var done = row.dataset.collected === "1";
+      run(App.api(itemUrl(id, "/purchased"), { method: "POST", body: { purchased: !done } }), focusKey,
+          done ? name + " is no longer marked as purchased." : name + " marked as purchased.");
+    }
     else if (action === "replace") run(App.api(itemUrl(id, "/replace"), { method: "POST" }), null, "Replaced with the cheaper alternative.");
   });
 

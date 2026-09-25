@@ -16,6 +16,6 @@
 {%- endmacro %}
 
 {% macro category_icon(category) -%}
-  {%- set icons = {"Grocery": "basket2", "Toiletries": "droplet", "Clothes": "handbag", "Electronics": "tv", "Combined": "layers"} -%}
+  {%- set icons = {"Grocery": "basket2", "Toiletries": "droplet", "Clothes": "handbag", "Combined": "layers"} -%}
   <span class="cat-icon" aria-hidden="true"><i class="bi bi-{{ icons.get(category, 'tag') }}"></i></span>
 {%- endmacro %}

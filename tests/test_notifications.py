@@ -285,7 +285,7 @@ def test_monthly_nsfas_reference_is_announced_once_a_month(user):
     created = notifications.evaluate(user)
     assert "nsfas_reference" in {n.Type for n in created}
     message = next(n.Message for n in created if n.Type == "nsfas_reference")
-    assert "R1\u00a0800" in message and "R50 above the R1\u00a0750" in message and "nothing is blocked" in message
+    assert "R1\u00a0800" in message and "R50 above the R1\u00a0750" in message and "NSFAS meal allowance" in message
     assert [n.Type for n in notifications.evaluate(user)] == []
 
 

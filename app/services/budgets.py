@@ -9,8 +9,10 @@ How the money adds up (read this first)
 * ``SubBudget.UsedAmount`` is the same sum for the items filed under that category.
 * The Shopping List view splits ``UsedAmount`` into **Used** (what was already used before this list,
   ``UsedAmount - list total``) and **In List** (the list total), so ``Remaining = Total - Used - In List``.
-* A list is *over budget* when ``UsedAmount > TotalAmount``. That never blocks adding items, and the R1 750
-  NSFAS reference never blocks anything; only "Proceed to Summary" is refused while over budget.
+* A list is *over budget* when ``UsedAmount > TotalAmount``. That never blocks adding items; only "Proceed to
+  Summary" is refused while over budget.
+* The R1 750 NSFAS allowance is a hard monthly limit (:func:`allowance_room`): a new budget cannot be more than the
+  allowance minus what the student already spent on budgets finished earlier in the same month (SAST).
 
 Only one budget is active per student, and it has one active shopping list. Removing a budget, or replacing it
 by saving a new one, closes the budget and its list and *deletes the list's items* (the Budget view's confirm
@@ -233,11 +235,43 @@ class ParsedBudgetForm:
         return sum((amount for _, amount in self.entries), ZERO)
 
 
-def nsfas_notice(total, allowance=None) -> dict:
-    """What the NSFAS allowance bar shows for a budget of ``total``: the bar, and a warning above the reference.
+@dataclass(frozen=True)
+class AllowanceRoom:
+    allowance: Decimal  # R1 750 a month
+    spent: Decimal  # already spent this month on budgets that were completed
+    room: Decimal  # the most a new budget may be now
 
-    Never a block: the warning only informs (Set Budget view, section A).
+    def message(self) -> str:
+        text = f"You can budget at most {format_zar(self.allowance)} a month (your NSFAS allowance)."
+        if self.spent > 0:
+            text += (
+                f" You already spent {format_zar(self.spent)} this month, so a new budget can be at most "
+                f"{format_zar(self.room)}."
+            )
+        return text
+
+
+def allowance_room(user_id: str, today: date | None = None) -> AllowanceRoom:
+    """How much of this month's NSFAS allowance is left for a new budget.
+
+    What was actually *spent* on budgets completed earlier this month is used up; money that was budgeted but not
+    spent (saved) is not. The active budget does not count: saving a new budget replaces it.
     """
+    allowance = to_decimal(current_app.config["NSFAS_MONTHLY_ALLOWANCE"])
+    today = today or today_sast()
+    lower, _ = sast_day_bounds(date(today.year, today.month, 1), None)
+    spent = ZERO
+    for budget in db.session.scalars(
+        select(Budget).where(Budget.UserId == user_id, Budget.IsActive.is_(False), Budget.DateCreated >= lower)
+    ):
+        if not is_abandoned(budget):
+            spent += money(budget.UsedAmount)
+    return AllowanceRoom(allowance, spent, max(ZERO, allowance - spent))
+
+
+def nsfas_notice(total, allowance=None) -> dict:
+    """What the NSFAS allowance bar shows for a budget of ``total``: the bar, and a message above the allowance
+    (a budget above it cannot be saved, see :func:`allowance_room`)."""
     allowance = to_decimal(allowance if allowance is not None else current_app.config["NSFAS_MONTHLY_ALLOWANCE"])
     total = to_decimal(total)
     percent = float(total / allowance * 100) if allowance > 0 else 0.0
@@ -246,7 +280,7 @@ def nsfas_notice(total, allowance=None) -> dict:
     if over > 0:
         warning = (
             f"Your budget is {format_zar(total)}, which is {format_zar(over)} above the "
-            f"{format_zar(allowance)} NSFAS meal allowance reference."
+            f"{format_zar(allowance)} you can still budget this month (NSFAS allowance). Lower it to save the budget."
         )
     return {
         "allocated": total,
@@ -257,8 +291,11 @@ def nsfas_notice(total, allowance=None) -> dict:
     }
 
 
-def parse_budget_form(form, defaults_title: str | None = None) -> ParsedBudgetForm:
+def parse_budget_form(form, defaults_title: str | None = None, room: AllowanceRoom | None = None) -> ParsedBudgetForm:
     """Validate the Set Budget form. Mirrors what static/js/budget_new.js checks in the browser.
+
+    ``room`` is the student's :func:`allowance_room`: the total may not be more than what is left of the monthly
+    NSFAS allowance.
 
     Form fields: ``title``, ``budget_type`` (individual | combined), and one ``amount_<Category>`` field per
     category *present* (a removed row is simply not sent), ``amount_Combined`` for a combined budget.
@@ -318,6 +355,9 @@ def parse_budget_form(form, defaults_title: str | None = None) -> ParsedBudgetFo
             errors["amounts"] = "Fix the amounts marked below."
         elif sum((a for _, a in entries), ZERO) > limit:
             errors["form"] = f"The total budget cannot be more than {format_zar(limit)}."
+        elif room is not None and sum((a for _, a in entries), ZERO) > room.room:
+            total = sum((a for _, a in entries), ZERO)
+            errors["form"] = f"Your budget of {format_zar(total)} is too high. " + room.message()
 
     if errors:
         entries = []
@@ -457,6 +497,30 @@ def complete_purchase(user_id: str) -> Budget:
         db.session.rollback()
         raise
     return budget
+
+
+@dataclass(frozen=True)
+class BudgetOutcome:
+    """What a finished budget came to: budgeted, used and saved (never negative)."""
+
+    budgeted: Decimal
+    used: Decimal
+
+    @property
+    def saved(self) -> Decimal:
+        return max(ZERO, self.budgeted - self.used)
+
+    def message(self) -> str:
+        text = f"You budgeted {format_zar(self.budgeted)} and used {format_zar(self.used)}."
+        if self.saved > 0:
+            return text + f" You saved {format_zar(self.saved)} from your budget."
+        return text + " You used your whole budget."
+
+
+def outcome(budget: Budget | None) -> BudgetOutcome | None:
+    if budget is None:
+        return None
+    return BudgetOutcome(money(budget.TotalAmount), money(budget.UsedAmount))
 
 
 # ---------------------------------------------------------------------------------------------------- Budget view data

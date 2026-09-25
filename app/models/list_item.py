@@ -55,6 +55,8 @@ class ListItem(db.Model):
     StoreLongitude = db.Column(db.Float, nullable=True)
     IsPurchased = db.Column(db.Boolean, nullable=False, default=False, server_default=sa_false())
     PurchasedDate = db.Column(db.DateTime(timezone=True), nullable=True)
+    # Ticked off in the shop with the item's "Purchased" button, before "Done - Purchase Completed" closes the list.
+    IsCollected = db.Column(db.Boolean, nullable=False, default=False, server_default=sa_false())
 
     # Computed property for total item cost (an exact Decimal, same as LineTotal)
     @property

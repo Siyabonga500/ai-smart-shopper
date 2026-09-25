@@ -93,6 +93,16 @@ class Trip:
     def store_count(self) -> int:
         return len({(item.StoreName or "").casefold() for item in self.items})
 
+    @property
+    def outcome(self) -> budgets.BudgetOutcome | None:
+        """Budgeted vs used vs saved for the budget this trip was shopped against."""
+        from app.models import Budget
+
+        budget = db.session.get(Budget, self.shopping_list.BudgetId)
+        if budget is None:
+            return None
+        return budgets.BudgetOutcome(money(budget.TotalAmount), self.total)
+
 
 @dataclass
 class TripPage:

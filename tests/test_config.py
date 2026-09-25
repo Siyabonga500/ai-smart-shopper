@@ -11,7 +11,7 @@ def test_business_constants_from_the_pdf(app):
     assert cfg["NSFAS_MONTHLY_ALLOWANCE"] == Decimal("1750.00")
     assert cfg["CURRENCY_CODE"] == "ZAR"
     assert cfg["CURRENCY_SYMBOL"] == "R"
-    assert cfg["BUDGET_CATEGORIES"] == ("Grocery", "Toiletries", "Clothes", "Electronics")
+    assert cfg["BUDGET_CATEGORIES"] == ("Grocery", "Toiletries", "Clothes")
     assert cfg["COMBINED_BUDGET_CATEGORY"] == "Combined"
     assert cfg["DASHBOARD_RECENT_ITEM_COUNT"] == 4
     assert cfg["SPENDING_HISTORY_MONTHS"] == 6

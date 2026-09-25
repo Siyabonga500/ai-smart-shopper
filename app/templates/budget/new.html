@@ -10,7 +10,7 @@
   </header>
 
   <form id="budget-form" method="post" action="{{ url_for('budget.new') }}" novalidate
-        data-allowance="{{ nsfas_allowance }}" data-max="{{ max_amount }}"
+        data-allowance="{{ room.room }}" data-max="{{ max_amount }}"
         data-combined-key="{{ combined_key }}" data-categories='{{ categories|tojson }}'>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -23,19 +23,19 @@
     {% if errors.get('form') %}<div class="alert alert-danger" role="alert">{{ errors['form'] }}</div>{% endif %}
     {% if errors.get('amounts') %}<div class="alert alert-danger" role="alert">{{ errors['amounts'] }}</div>{% endif %}
 
-    {# A. NSFAS allowance progress bar - a reference, never a block #}
+    {# A. NSFAS allowance progress bar - a hard monthly limit #}
     <section class="card app-card mb-3" aria-labelledby="nsfas-title"><div class="card-body">
-      <div class="fw-bold" id="nsfas-title">NSFAS Monthly Allowance <span class="fw-normal text-muted-ink">(Reference)</span></div>
+      <div class="fw-bold" id="nsfas-title">NSFAS Monthly Allowance <span class="fw-normal text-muted-ink">(Limit)</span></div>
+      {% if room.spent > 0 %}<div class="small text-muted-ink">{{ room.spent|zar }} of {{ room.allowance|zar }} already spent this month, so {{ room.room|zar }} is left to budget.</div>{% endif %}
       <div class="d-flex justify-content-between align-items-baseline mt-1">
         <span><strong class="fs-5 tabular" id="nsfas-allocated">{{ nsfas.allocated|zar }}</strong> <span class="text-muted-ink">/ {{ nsfas.allowance|zar }}</span></span>
         <span class="fw-600 tabular" id="nsfas-percent">{{ nsfas.percent|round(0)|int }}%</span>
       </div>
-      <div class="meter mt-1 {{ 'warn' if nsfas.percent >= 100 }}" id="nsfas-meter" role="progressbar" aria-label="Allocated against the NSFAS reference" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ [nsfas.percent, 100]|min|round(0)|int }}">
+      <div class="meter mt-1 {{ 'warn' if nsfas.percent >= 100 }}" id="nsfas-meter" role="progressbar" aria-label="Allocated against the NSFAS allowance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ [nsfas.percent, 100]|min|round(0)|int }}">
         <span style="width: {{ [nsfas.percent, 100]|min }}%"></span>
       </div>
       <div class="notice-warn mt-2" id="nsfas-warning" role="status" {% if not nsfas.warning %}hidden{% endif %}>
         <i class="bi bi-exclamation-triangle me-1"></i><span id="nsfas-warning-text">{{ nsfas.warning }}</span>
-        <span class="d-block small">This is only a reference. You can still save this budget.</span>
       </div>
     </div></section>
 
@@ -112,7 +112,7 @@
 
     <div class="row g-2 mb-4">
       <div class="col-5"><a class="btn btn-outline-secondary w-100 btn-lg-tap" href="{{ url_for('budget.index') }}">Cancel</a></div>
-      <div class="col-7"><button class="btn btn-accent w-100 btn-lg-tap" type="submit" id="save-budget">Save Budget</button></div>
+      <div class="col-7"><button class="btn btn-accent w-100 btn-lg-tap" type="submit" id="save-budget" {{ 'disabled' if nsfas.warning }}>Save Budget</button></div>
     </div>
   </form>
 

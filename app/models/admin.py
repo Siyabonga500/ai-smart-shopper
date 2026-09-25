@@ -13,7 +13,7 @@ from app.extensions import db
 from app.utils.dates import utcnow
 from app.utils.ids import AUDIT_PREFIX, MAPPING_PREFIX, generate_id
 
-MAPPED_CATEGORIES = ("Grocery", "Toiletries", "Clothes", "Electronics", "Combined")
+MAPPED_CATEGORIES = ("Grocery", "Toiletries", "Clothes", "Combined")
 SOURCES = ("loyaltyhub", "buyly", "apify", "parsebot", "mock")
 
 

@@ -5,7 +5,8 @@
        * choosing Combined turns every individual category off (the rows are removed and cannot be added),
        * while any individual category is listed, Combined is disabled - remove them all first to switch.
    - One row per category. The total updates on every change.
-   - The NSFAS R1 750 bar only warns; it never stops the student saving.
+   - The NSFAS allowance (R1 750 a month, less what was already spent this month) is a hard limit:
+     "Save Budget" is disabled while the total is above it.
    - "Save Budget" opens a summary; only "Confirm & Save" submits.
    Without JavaScript the form still posts normally and the server applies the same rules. */
 (function () {
@@ -18,7 +19,7 @@
   var maxAmount = parseFloat(form.getAttribute("data-max")) || 1000000;
   var categories = JSON.parse(form.getAttribute("data-categories") || "[]");
   var combinedKey = form.getAttribute("data-combined-key") || "Combined";
-  var icons = { Grocery: "basket2", Toiletries: "droplet", Clothes: "handbag", Electronics: "tv" };
+  var icons = { Grocery: "basket2", Toiletries: "droplet", Clothes: "handbag" };
 
   var $ = function (id) { return document.getElementById(id); };
   var rowsEl = $("category-rows"), combinedRow = $("combined-row"), combinedInput = $("amount_" + combinedKey);
@@ -51,7 +52,7 @@
     var over = Math.round((amount - allowance) * 100) / 100;
     if (over <= 0) return "";
     return "Your budget is " + App.formatZAR(amount) + ", which is " + App.formatZAR(over) + " above the " +
-      App.formatZAR(allowance) + " NSFAS meal allowance reference.";
+      App.formatZAR(allowance) + " you can still budget this month (NSFAS allowance). Lower it to save the budget.";
   }
 
   function updateTotals() {
@@ -67,6 +68,7 @@
     var warning = nsfasWarning(amount);
     $("nsfas-warning").hidden = !warning;
     $("nsfas-warning-text").textContent = warning;
+    $("save-budget").disabled = !!warning;                                   // above the allowance: blocked
   }
 
   // ---- the Combined / individual rule ---------------------------------------------------------------------
@@ -213,7 +215,7 @@
     var warning = nsfasWarning(summary.total);
     var warnEl = $("confirm-warning");
     warnEl.hidden = !warning;
-    warnEl.textContent = warning ? warning + " You can still save it." : "";
+    warnEl.textContent = warning;
     var button = $("confirm-save");
     button.disabled = false;
     bootstrap.Modal.getOrCreateInstance($("confirm-modal")).show();
@@ -223,6 +225,7 @@
     if (confirmed) return;                                                    // the confirmed native submit
     event.preventDefault();
     var summary = validate();
+    if (summary && nsfasWarning(summary.total)) { $("nsfas-warning").scrollIntoView({ block: "center" }); return; }
     if (summary) showSummary(summary);
   });
 

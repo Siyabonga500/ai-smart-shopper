@@ -7,8 +7,8 @@ The three students show the three situations the app is built around:
 
 * Thabo: a normal month. Individual category budgets, a list that is comfortably inside them.
 * Nomvula: one Combined Budget and a list close to the limit (the amber "almost there" state).
-* Sipho: a budget above the R1 750 NSFAS reference (a warning, never a block) and a list that is over budget, so
-  "Proceed to Summary" is disabled while adding items is still allowed.
+* Sipho: a budget of the full R1 750 NSFAS allowance and a list that is over budget, so "Proceed to Summary" is
+  disabled while adding items is still allowed.
 
 Every demo account signs in with :data:`DEMO_PASSWORD`. Never seed them into a public production site.
 """
@@ -98,7 +98,7 @@ PERSONAS: tuple[Persona, ...] = (
         -29.8410,
         31.0010,
         monthly=(("Grocery", 1000), ("Toiletries", 350), ("Clothes", 250)),
-        current=(("Grocery", 1200), ("Toiletries", 400), ("Clothes", 300)),  # R1 900: above the NSFAS reference
+        current=(("Grocery", 1100), ("Toiletries", 400), ("Clothes", 250)),  # R1 750: the whole NSFAS allowance
         list_fill=1.06,
         prefers="cheapest",
         spend=(0.75, 0.95),

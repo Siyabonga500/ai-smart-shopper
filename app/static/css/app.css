@@ -510,3 +510,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); }
 .compare-note { border-radius: .6rem; padding: .5rem .75rem; font-weight: 600; font-size: var(--fs-sm); }
 .compare-note.ok { background: var(--success-tint); color: var(--success-text); }
 .compare-note.far { background: var(--danger-tint); color: var(--danger-text); }
+.text-success-strong { color: var(--success-text); }
+
+/* ---- Shopping list: items ticked off as purchased in the shop ------------------------------------------ */
+.list-item.is-collected { background: var(--success-tint); }
+.list-item.is-collected .li-info .fw-600 { text-decoration: line-through; }

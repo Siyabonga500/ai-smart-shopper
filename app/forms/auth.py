@@ -18,7 +18,6 @@ from app.forms.validators import (
 )
 from app.models import User
 from app.utils.sa_id import SAIdError, clean_sa_id, parse_sa_id
-from app.utils.validators import validate_sa_id
 
 
 def _blank_first(choices):
@@ -83,16 +82,22 @@ class RegistrationForm(FlaskForm):
 
     # --- field level -------------------------------------------------------------
     def validate_Email(self, field):
+        domain = current_app.config["STUDENT_EMAIL_DOMAIN"]
+        if domain and not (field.data or "").endswith("@" + domain):
+            raise ValidationError(f"Use your DUT student email, for example 22226534@{domain}.")
         taken = db.session.scalar(select(User.UserId).where(func.lower(User.Email) == field.data))
         if taken:
             raise ValidationError("An account with this email already exists. Try signing in instead.")
 
     def validate_SAIdNumber(self, field):
-        try:
-            validate_sa_id(field.data)  # 13 digits, real date, citizenship digit, Luhn
-            self.sa_id_info = parse_sa_id(field.data)  # date of birth, gender and citizenship for the route
-        except SAIdError as exc:
-            raise ValidationError(str(exc)) from None
+        # Any 13 digits are accepted (no date, citizenship or check-digit rules).
+        digits = clean_sa_id(field.data)
+        if not (len(digits) == 13 and digits.isascii() and digits.isdigit()):
+            raise ValidationError("ID number must be exactly 13 digits.")
+        try:  # best effort: date of birth and gender when the number happens to be a real SA ID
+            self.sa_id_info = parse_sa_id(digits)
+        except SAIdError:
+            self.sa_id_info = None
         from app.services.accounts import sa_id_fingerprint
 
         if db.session.scalar(select(User.UserId).where(User.SAIdHash == sa_id_fingerprint(field.data))):

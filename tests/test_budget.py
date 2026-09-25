@@ -139,11 +139,19 @@ def test_default_title_format():
     [
         ("1200", None),
         ("1750", None),
-        ("1900", "Your budget is R1 900, which is R150 above the R1 750 NSFAS meal allowance reference."),
-        ("1750.50", "Your budget is R1 750.50, which is R0.50 above the R1 750 NSFAS meal allowance reference."),
+        (
+            "1900",
+            "Your budget is R1 900, which is R150 above the R1 750 you can still budget this month (NSFAS "
+            "allowance). Lower it to save the budget.",
+        ),
+        (
+            "1750.50",
+            "Your budget is R1 750.50, which is R0.50 above the R1 750 you can still budget this month (NSFAS "
+            "allowance). Lower it to save the budget.",
+        ),
     ],
 )
-def test_nsfas_notice_only_warns(app, total, warning):
+def test_nsfas_notice_explains_the_limit(app, total, warning):
     notice = budgets.nsfas_notice(D(total))
     assert (notice["warning"] or "").replace("\u00a0", " ") == (warning or "")
 
@@ -183,7 +191,7 @@ def test_creating_a_budget_never_touches_another_students_budget(app, make_user)
 def test_combined_budget_has_one_combined_subbudget(app, user):
     budget = new_budget(user, (("Combined", "1500"),))
     assert [s.Category for s in budget.sub_budgets] == ["Combined"]
-    assert budgets.sub_budget_for(budget, "Electronics").Category == "Combined"  # everything counts against it
+    assert budgets.sub_budget_for(budget, "Clothes").Category == "Combined"  # everything counts against it
 
 
 def test_remove_active_budget_closes_everything_and_deletes_items(app, user):
@@ -359,7 +367,7 @@ def test_new_budget_page_defaults(client, user, login):
     login(user)
     html = client.get("/budget/new").get_data(as_text=True)
     assert default_budget_title() in html
-    for category in ("Grocery", "Toiletries", "Clothes", "Electronics"):
+    for category in ("Grocery", "Toiletries", "Clothes"):
         assert f'name="amount_{category}"' in html
     assert "NSFAS Monthly Allowance" in html and "R1 750" in html
     assert "already have an active budget" not in html
@@ -374,12 +382,49 @@ def test_saving_a_budget_redirects_and_makes_it_active(client, user, login):
     assert budgets.get_active_list(budget).Title == "September Budget Shopping List"
 
 
-def test_a_budget_above_the_nsfas_reference_is_saved_with_a_warning(client, user, login):
+def test_a_budget_above_the_nsfas_allowance_is_blocked(client, user, login):
     login(user)
-    response = client.post("/budget/new", data=valid_post(amount_Grocery="1500"), follow_redirects=True)
-    assert budgets.get_active_budget(user.UserId).TotalAmount == D("2200.00")  # not blocked
-    text = response.get_data(as_text=True).replace(" ", " ")
-    assert "above the R1 750 NSFAS meal allowance reference" in text and "only a reference" in text
+    response = client.post("/budget/new", data=valid_post(amount_Grocery="1500"))  # R2 200 in all
+    assert response.status_code == 400
+    assert budgets.get_active_budget(user.UserId) is None  # blocked
+    text = response.get_data(as_text=True).replace("\u00a0", " ")
+    assert "Your budget of R2 200 is too high" in text and "at most R1 750 a month" in text
+
+
+def test_exactly_the_allowance_is_accepted(client, user, login):
+    login(user)
+    response = client.post("/budget/new", data=valid_post(amount_Grocery="1050"))  # R1 750
+    assert response.status_code == 302 and budgets.get_active_budget(user.UserId).TotalAmount == D("1750.00")
+
+
+def test_money_spent_earlier_this_month_counts_against_the_allowance(client, user, login):
+    first = budgets.create_budget(user.UserId, "Early September", [("Grocery", D("1000"))])
+    first.UsedAmount = D("800.00")  # shopped R800 of it
+    first.deactivate()
+    db.session.commit()
+    room = budgets.allowance_room(user.UserId)
+    assert (room.spent, room.room) == (D("800.00"), D("950.00"))
+
+    login(user)
+    blocked = client.post("/budget/new", data=valid_post(amount_Grocery="300"))  # R1 000 > R950 left
+    text = blocked.get_data(as_text=True).replace("\u00a0", " ")
+    assert blocked.status_code == 400 and "You already spent R800 this month" in text and "at most R950" in text
+    assert client.post("/budget/new", data=valid_post(amount_Grocery="250")).status_code == 302  # R950
+
+
+def test_an_abandoned_budget_does_not_use_up_the_allowance(app, user):
+    budgets.create_budget(user.UserId, "Oops", [("Grocery", D("1750"))])
+    budgets.remove_active_budget(user.UserId)
+    assert budgets.allowance_room(user.UserId).room == D("1750.00")
+
+
+def test_budget_outcome_shows_used_and_saved(app):
+    outcome = budgets.BudgetOutcome(D("1000.00"), D("820.00"))
+    assert outcome.saved == D("180.00")
+    assert outcome.message().replace("\u00a0", " ") == (
+        "You budgeted R1 000 and used R820. You saved R180 from your budget."
+    )
+    assert "whole budget" in budgets.BudgetOutcome(D("500"), D("500")).message()
 
 
 def test_invalid_submission_keeps_what_was_typed(client, user, login):
@@ -457,13 +502,11 @@ def test_remove_needs_a_post_and_removes_the_list_too(client, user, login):
 from tests.factories import BudgetFactory, ListItemFactory, UserFactory  # noqa: E402
 
 
-def test_scenario_nsfas_amount_above_1750_warns_and_still_saves(app):
+def test_scenario_nsfas_amount_above_1750_is_refused_by_the_form(app):
     user = UserFactory()
-    entries = [("Grocery", D("1200")), ("Toiletries", D("650"))]  # R1 850 in all
-    assert budgets.nsfas_notice(sum(a for _, a in entries))["warning"]
-    budget = BudgetFactory(user=user, entries=entries)  # saved: a warning is never a block
-    assert budget.IsActive and budget.TotalAmount == D("1850")
-    assert budgets.get_active_budget(user.UserId).BudgetId == budget.BudgetId
+    form = {"title": "Too much", "budget_type": "individual", "amount_Grocery": "1200", "amount_Toiletries": "650"}
+    parsed = budgets.parse_budget_form(form, room=budgets.allowance_room(user.UserId))  # R1 850 in all
+    assert not parsed.ok and "at most R1" in parsed.errors["form"]
 
 
 def test_scenario_exactly_1750_has_no_warning(app):

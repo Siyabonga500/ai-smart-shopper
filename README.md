@@ -7,9 +7,14 @@ shopping. It is a Flask **website**; a mobile app is planned once the web app is
 
 Rules the app is built around:
 
-- The NSFAS meal allowance of **R1 750** is a reference. A budget above it shows a warning and is still saved.
+- The NSFAS meal allowance of **R1 750 a month** is a hard limit: a budget above what is left of it this month
+  cannot be saved. Money already *spent* on budgets finished earlier in the month counts; money saved does not.
+- Students sign up with their DUT student email (`...@dut4life.ac.za`, set by `STUDENT_EMAIL_DOMAIN`) and an ID
+  number of exactly 13 digits (any digits are accepted; the box stops at 13).
+- On the shopping list each item has a **Purchased** button to tick it off in the shop before "Done – Purchase
+  Completed". After Done, the student sees how much they used and how much they saved from the budget.
 - A list that is **over budget** still accepts new items, but "Proceed to Summary" is disabled until it fits.
-- A **Combined Budget** and individual category budgets (Grocery, Toiletries, Clothes, Electronics) are mutually exclusive.
+- A **Combined Budget** and individual category budgets (Grocery, Toiletries, Clothes) are mutually exclusive.
 - Products with the **same barcode** are the same product and are grouped so their prices can be compared.
 - All prices are in **ZAR** (shown as `R80`, `R1 750.50`). Times are stored in UTC and shown in South African time.
 - The registration dropdown lists all DUT public residences. The map starts on Durban.
@@ -293,7 +298,7 @@ admin flag (anyone else gets the 403 page). JSON endpoints answer `401`/`403` as
 | Method | Path | Access | What it does |
 |---|---|---|---|
 | GET | `/` , `/dashboard` | Student | Budget summary, six-month chart, weather, recommended items |
-| GET, POST | `/register` | Public | Sign up with e-mail and password (SA ID checked, DUT residence dropdown) |
+| GET, POST | `/register` | Public | Sign up with e-mail and password (13-digit ID number, DUT student email, DUT residence dropdown) |
 | GET, POST | `/login` | Public | Sign in (failed attempts are rate limited per e-mail) |
 | GET, POST | `/logout` | Public | Sign out (does nothing when nobody is signed in) |
 | GET | `/auth/microsoft` | Public | Start Microsoft sign-in (Flask-Dance serves `/auth/azure/authorized`) |
