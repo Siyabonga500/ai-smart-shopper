@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ course.Title }} - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.courses') }}">Courses</a></li><li class="breadcrumb-item active" aria-current="page">{{ course.Title }}</li></ol></nav>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ course.Title }}</h1>
+      <p class="small text-muted-ink mb-0">{{ course.questions|length }} questions · {{ stats.attempts }} attempt{{ '' if stats.attempts == 1 else 's' }} by {{ stats.people }} student{{ '' if stats.people == 1 else 's' }} · average {{ stats.average }}%</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-brand" href="{{ url_for('admin.course_attempts', course_id=course.CourseId) }}"><i class="bi bi-people me-1"></i>Attempts</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('courses.course', slug=course.Slug) }}" target="_blank" rel="noopener">View as student</a>
+    </div>
+  </div>
+
+  <details class="card app-card mb-3"><summary class="card-body fw-600">Lesson text</summary>
+    <div class="card-body pt-0 small message-body">{{ course.Content }}</div>
+  </details>
+
+  <ol class="list-unstyled d-grid gap-2 mb-4">
+    {% for q in course.questions %}
+      <li class="card app-card" id="q-{{ q.QuestionId }}"><div class="card-body">
+        <div class="d-flex justify-content-between gap-2 align-items-start">
+          <h2 class="h6 fw-bold mb-2">{{ loop.index }}. {{ q.Text }}</h2>
+          <form method="post" action="{{ url_for('admin.question_delete', question_id=q.QuestionId) }}" data-confirm="Remove this question and its answers?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash3"></i><span class="visually-hidden">Remove question {{ loop.index }}</span></button>
+          </form>
+        </div>
+        <ul class="list-unstyled mb-2">
+          {% for a in q.answers %}
+            <li class="d-flex align-items-center gap-2 py-1 answer-row {{ 'is-correct' if a.IsCorrect }}">
+              <i class="bi {{ 'bi-check-circle-fill text-success-strong' if a.IsCorrect else 'bi-circle text-muted-ink' }}" aria-hidden="true"></i>
+              <span class="flex-grow-1 text-break">{{ a.Text }}{% if a.IsCorrect %} <span class="badge text-bg-success ms-1">Correct</span>{% endif %}</span>
+              {% if not a.IsCorrect %}
+                <form method="post" action="{{ url_for('admin.answer_correct', answer_id=a.AnswerId) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-link p-0" type="submit">Make correct</button>
+                </form>
+                <form method="post" action="{{ url_for('admin.answer_delete', answer_id=a.AnswerId) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-link text-danger p-0 ms-2" type="submit">Remove</button>
+                </form>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% if q.Explanation %}<div class="small text-muted-ink mb-2"><i class="bi bi-lightbulb me-1"></i>{{ q.Explanation }}</div>{% endif %}
+        {% if q.answers|length < max_answers %}
+          <form method="post" action="{{ url_for('admin.answer_add', question_id=q.QuestionId) }}" class="row g-2 align-items-center">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-md-8"><label class="visually-hidden" for="new-{{ q.QuestionId }}">New answer</label>
+              <input class="form-control form-control-sm" id="new-{{ q.QuestionId }}" name="text" maxlength="200" placeholder="Add another answer"></div>
+            <div class="col-auto form-check ms-2"><input class="form-check-input" type="checkbox" name="correct" value="1" id="newc-{{ q.QuestionId }}">
+              <label class="form-check-label small" for="newc-{{ q.QuestionId }}">Correct</label></div>
+            <div class="col-auto"><button class="btn btn-sm btn-outline-brand" type="submit">Add answer</button></div>
+          </form>
+        {% endif %}
+      </div></li>
+    {% else %}
+      <li class="card app-card"><div class="card-body text-center text-muted-ink">No questions yet. Add the first one below.</div></li>
+    {% endfor %}
+  </ol>
+
+  <form method="post" action="{{ url_for('admin.question_add', course_id=course.CourseId) }}" class="card app-card admin-form" id="add-question" novalidate><div class="card-body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="h5 fw-bold">Add a question</h2>
+    <div class="mb-3"><label class="form-label" for="q-text">Question</label>
+      <input class="form-control" id="q-text" name="text" maxlength="300" value="{{ form.get('text', '') }}" required></div>
+    <fieldset class="mb-3">
+      <legend class="form-label fs-6">Four answers — choose the correct one</legend>
+      {% for i in range(4) %}
+        <div class="input-group mb-2">
+          <span class="input-group-text"><input class="form-check-input mt-0" type="radio" name="correct" value="{{ i }}" aria-label="Answer {{ i + 1 }} is correct" {{ 'checked' if form.get('correct') == i|string }}></span>
+          <input class="form-control" name="answer_{{ i }}" maxlength="200" placeholder="Answer {{ i + 1 }}" value="{{ form.get('answer_' ~ i, '') }}" aria-label="Answer {{ i + 1 }}">
+        </div>
+      {% endfor %}
+    </fieldset>
+    <div class="mb-3"><label class="form-label" for="q-explain">Why is it correct? <span class="text-muted-ink small">(optional, shown after the quiz)</span></label>
+      <input class="form-control" id="q-explain" name="explanation" maxlength="300" value="{{ form.get('explanation', '') }}"></div>
+    <button class="btn btn-brand" type="submit"><i class="bi bi-plus-lg me-1"></i>Add question</button>
+  </div></form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

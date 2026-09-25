@@ -179,6 +179,12 @@
       </div>
     </div>
   </div>
+
+  <a class="card app-card mt-3 text-decoration-none course-card" href="{{ url_for('courses.index') }}"><div class="card-body d-flex align-items-center gap-3">
+    <span class="home-step-icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
+    <div class="flex-grow-1"><div class="fw-bold text-dark">Money courses</div><div class="small text-muted-ink">Learn to budget, save and shop smart, then test yourself with a 10-question quiz.</div></div>
+    <i class="bi bi-chevron-right text-muted-ink" aria-hidden="true"></i>
+  </div></a>
 {% endblock %}
 
 {% block scripts %}<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}

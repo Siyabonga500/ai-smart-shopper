@@ -24,6 +24,7 @@ from app.routes.api_shop import bp as shop_api_bp
 from app.routes.auth import bp as auth_bp
 from app.routes.auth import build_microsoft_blueprint
 from app.routes.budget import bp as budget_bp
+from app.routes.courses import bp as courses_bp
 from app.routes.dashboard import bp as dashboard_bp
 from app.routes.history import bp as history_bp
 from app.routes.pages import bp as pages_bp
@@ -63,6 +64,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(shopping_legacy_bp)
     app.register_blueprint(history_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(courses_bp)
     app.register_blueprint(admin_bp)
 
     microsoft_bp = build_microsoft_blueprint(app)

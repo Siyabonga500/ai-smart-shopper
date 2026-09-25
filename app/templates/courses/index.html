@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Courses - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('dashboard.index') }}" aria-label="Back to Home"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered">Money Courses</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+  <p class="text-muted-ink">Short lessons on budgeting, saving and shopping smart. Each ends with a 10-question quiz: score 70% or more to pass.</p>
+
+  <div class="row g-3">
+    {% for card in cards %}
+      {% set c = card.course %}
+      <div class="col-md-6 col-lg-4">
+        <a class="card app-card course-card h-100 text-decoration-none" href="{{ url_for('courses.course', slug=c.Slug) }}">
+          <div class="card-body d-flex flex-column">
+            <span class="home-step-icon" aria-hidden="true"><i class="bi bi-{{ c.Icon }}"></i></span>
+            <h2 class="h6 fw-bold mt-2 text-dark">{{ c.Title }}</h2>
+            <p class="small text-muted-ink">{{ c.Summary }}</p>
+            <div class="small text-muted-ink mt-auto">{{ c.Minutes }} min read · {{ card.question_count }} questions</div>
+            <div class="mt-2">
+              {% if card.best %}
+                <span class="badge {{ 'text-bg-success' if card.best.passed else 'text-bg-warning' }}">
+                  Best: {{ card.best.Score }}/{{ card.best.Total }} ({{ card.best.percent }}%) · {{ 'Passed' if card.best.passed else 'Try again' }}
+                </span>
+              {% else %}
+                <span class="badge text-bg-light">Not started</span>
+              {% endif %}
+            </div>
+          </div>
+        </a>
+      </div>
+    {% else %}
+      <div class="col-12"><div class="card app-card"><div class="card-body empty-state"><i class="bi bi-mortarboard"></i><p class="mt-2 mb-0">No courses yet.</p></div></div></div>
+    {% endfor %}
+  </div>
+{% endblock %}

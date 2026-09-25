@@ -18,6 +18,9 @@ Rules the app is built around:
 - Search: "All" with no search words shows every product; filters (price, distance 0-60 km, stores) are optional.
   Saved preferences (store, brand, category, dietary) mark matching products "Matches your preferences" and, when
   the student has any, search shows those first ("My preferences first", changeable in Sort).
+- **Money courses** (`/courses`): three short lessons (budgeting on R1 750, saving, shopping smart), each with a
+  10-question multiple-choice quiz (4 answers, 1 correct; 70% to pass). Admins manage the questions and answers and
+  see every attempt under **Admin > Courses**. `flask seed-courses` loads them (also done on the first visit).
 - The shopping list shows a map of the stores to travel to, redrawn as items change.
 - On the shopping list each item has a **Purchased** button to tick it off in the shop. "Proceed to Summary" (and
   "Done – Purchase Completed") stay blocked until every item is ticked as purchased or deleted from the list. After Done, the student sees how much they used and how much they saved from the budget.

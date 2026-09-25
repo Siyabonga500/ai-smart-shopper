@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ course.Title }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('courses.index') }}" aria-label="Back to Courses"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered text-break">{{ course.Title }}</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  <section class="card app-card mb-3" aria-labelledby="lesson-title"><div class="card-body lesson">
+    <h2 class="h5 fw-bold" id="lesson-title"><i class="bi bi-book me-1" aria-hidden="true"></i>Lesson <span class="small fw-normal text-muted-ink">· {{ course.Minutes }} min read</span></h2>
+    {% for block in course.lesson_blocks %}
+      {% if block.text %}<p class="{{ 'mb-1' if block.bullets }}">{{ block.text }}</p>{% endif %}
+      {% if block.bullets %}<ul>{% for line in block.bullets %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+    {% endfor %}
+  </div></section>
+
+  <form method="post" action="{{ url_for('courses.course', slug=course.Slug) }}" class="card app-card mb-3" aria-labelledby="quiz-title" novalidate>
+    <div class="card-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h2 class="h5 fw-bold" id="quiz-title"><i class="bi bi-patch-question me-1" aria-hidden="true"></i>Quiz</h2>
+      <p class="small text-muted-ink">{{ course.questions|length }} questions. Pick one answer for each, then hand in. You need 70% to pass and you can try as often as you like.</p>
+      <ol class="quiz-list">
+        {% for q in course.questions %}
+          <li class="quiz-question{{ ' is-missing' if (loop.index|string) in missing }}">
+            <fieldset>
+              <legend class="fw-600 fs-6">{{ q.Text }}</legend>
+              {% for a in q.answers %}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="q_{{ q.QuestionId }}" id="a_{{ a.AnswerId }}" value="{{ a.AnswerId }}"
+                         {{ 'checked' if picked.get('q_' ~ q.QuestionId) == a.AnswerId }}>
+                  <label class="form-check-label" for="a_{{ a.AnswerId }}">{{ a.Text }}</label>
+                </div>
+              {% endfor %}
+              {% if (loop.index|string) in missing %}<div class="small text-danger mt-1">Choose an answer.</div>{% endif %}
+            </fieldset>
+          </li>
+        {% endfor %}
+      </ol>
+      <button class="btn btn-brand btn-lg-tap w-100" type="submit"><i class="bi bi-check2-square me-1" aria-hidden="true"></i>Hand in my answers</button>
+    </div>
+  </form>
+{% endblock %}

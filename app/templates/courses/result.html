@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Your result - {{ course.Title }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <a class="page-back" href="{{ url_for('courses.index') }}" aria-label="Back to Courses"><i class="bi bi-chevron-left"></i></a>
+    <h1 class="page-title centered text-break">Your result</h1>
+    {% include "partials/_bell.html" %}
+  </header>
+
+  <section class="card app-card mb-3 text-center"><div class="card-body">
+    <div class="small text-muted-ink">{{ course.Title }}</div>
+    <div class="quiz-score {{ 'pass' if attempt.passed else 'fail' }}">{{ attempt.Score }}/{{ attempt.Total }}</div>
+    <div class="fw-600">{{ attempt.percent }}% · {{ 'Well done, you passed!' if attempt.passed else 'Not yet: you need 70% to pass. Read the lesson again and retry.' }}</div>
+    <div class="d-flex justify-content-center gap-2 mt-3 flex-wrap">
+      <a class="btn btn-outline-brand" href="{{ url_for('courses.course', slug=course.Slug) }}"><i class="bi bi-arrow-repeat me-1"></i>Try again</a>
+      <a class="btn btn-brand" href="{{ url_for('courses.index') }}">All courses</a>
+    </div>
+  </div></section>
+
+  <h2 class="section-title">Your answers</h2>
+  <ol class="quiz-list">
+    {% for q in course.questions %}
+      {% set picked = choices.get(q.QuestionId) %}
+      {% set right = q.correct %}
+      {% set ok = right and picked == right.AnswerId %}
+      <li class="card app-card mb-2 quiz-review {{ 'ok' if ok else 'wrong' }}"><div class="card-body p-3">
+        <div class="fw-600">{{ q.Text }}</div>
+        {% for a in q.answers if a.AnswerId == picked %}<div class="small">Your answer: <strong>{{ a.Text }}</strong> <i class="bi {{ 'bi-check-circle-fill text-success-strong' if ok else 'bi-x-circle-fill text-danger' }}" aria-label="{{ 'correct' if ok else 'wrong' }}"></i></div>{% else %}<div class="small text-muted-ink">Not answered (added after your attempt).</div>{% endfor %}
+        {% if not ok and right %}<div class="small">Correct answer: <strong>{{ right.Text }}</strong></div>{% endif %}
+        {% if q.Explanation %}<div class="small text-muted-ink mt-1"><i class="bi bi-lightbulb me-1"></i>{{ q.Explanation }}</div>{% endif %}
+      </div></li>
+    {% endfor %}
+  </ol>
+{% endblock %}

@@ -69,6 +69,10 @@ def test_the_six_pdf_tables_exist_plus_the_tables_added_by_later_steps(app):
         "audit_logs",  # Step 16: admin portal
         "catalogue_products",  # products admins add by hand
         "contact_messages",  # About us > Contact us
+        "courses",
+        "course_questions",
+        "course_answers",
+        "course_attempts",  # money courses and their quizzes
     }
 
 

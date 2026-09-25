@@ -192,6 +192,15 @@ def register_cli(app) -> None:
         db.session.commit()
         click.echo(f"{'Created' if created else 'Updated'} the admin account {user.Email}. Sign in at /login.")
 
+    @app.cli.command("seed-courses")
+    def seed_courses():
+        """Add the three built-in money courses (10 questions each) that are missing. Safe to run again."""
+        from app.services.courses import add_missing_courses
+
+        added = add_missing_courses()
+        db.session.commit()
+        click.echo(f"Courses: {added} added.")
+
     @app.cli.command("healthcheck")
     def healthcheck():
         """Print the health report as JSON; exit 1 when the database is down (used by the Docker HEALTHCHECK)."""

@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% block title %}Attempts - {{ course.Title }} - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.courses') }}">Courses</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.course_detail', course_id=course.CourseId) }}">{{ course.Title }}</a></li><li class="breadcrumb-item active" aria-current="page">Attempts</li></ol></nav>
+  <h1 class="h3 mb-1">Who attempted “{{ course.Title }}”</h1>
+  <p class="small text-muted-ink mb-3">{{ stats.attempts }} attempt{{ '' if stats.attempts == 1 else 's' }} by {{ stats.people }} student{{ '' if stats.people == 1 else 's' }} · average {{ stats.average }}% · {{ stats.passed }} passed (70% or more)</p>
+  <div class="card app-card"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 admin-table">
+      <thead><tr><th scope="col">Student</th><th scope="col" class="d-none d-md-table-cell">Email</th><th scope="col" class="text-end">Score</th><th scope="col">Result</th><th scope="col" class="d-none d-md-table-cell">When</th></tr></thead>
+      <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td><a href="{{ url_for('admin.user_detail', user_id=a.UserId) }}">{{ a.user.FullName }}</a></td>
+            <td class="d-none d-md-table-cell small">{{ a.user.Email }}</td>
+            <td class="text-end tabular">{{ a.Score }}/{{ a.Total }} ({{ a.percent }}%)</td>
+            <td><span class="badge {{ 'text-bg-success' if a.passed else 'text-bg-warning' }}">{{ 'Passed' if a.passed else 'Not yet' }}</span></td>
+            <td class="d-none d-md-table-cell small">{{ a.CreatedOn|sast_datetime }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-center text-muted-ink py-4">Nobody has attempted this course yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}Courses - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-1">Courses</h1>
+  <p class="small text-muted-ink mb-3">Short lessons with a multiple-choice quiz. Open a course to add or remove questions and answers, or see who attempted it.</p>
+  <div class="card app-card"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 admin-table">
+      <thead><tr><th scope="col">Course</th><th scope="col" class="text-end">Questions</th><th scope="col" class="text-end">Attempts</th>
+        <th scope="col" class="text-end d-none d-md-table-cell">Students</th><th scope="col" class="text-end d-none d-md-table-cell">Average</th>
+        <th scope="col" class="text-end d-none d-md-table-cell">Passed</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+        {% for c, stats in rows %}
+          <tr>
+            <td><div class="fw-600"><i class="bi bi-{{ c.Icon }} me-1" aria-hidden="true"></i>{{ c.Title }}</div><div class="small text-muted-ink">{{ c.Summary }}</div></td>
+            <td class="text-end tabular">{{ c.questions|length }}</td>
+            <td class="text-end tabular" data-stat="attempts-{{ c.Slug }}">{{ stats.attempts }}</td>
+            <td class="text-end tabular d-none d-md-table-cell">{{ stats.people }}</td>
+            <td class="text-end tabular d-none d-md-table-cell">{{ stats.average }}%</td>
+            <td class="text-end tabular d-none d-md-table-cell">{{ stats.passed }}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.course_detail', course_id=c.CourseId) }}">Questions</a>
+              <a class="btn btn-sm btn-outline-brand" href="{{ url_for('admin.course_attempts', course_id=c.CourseId) }}">Attempts</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+{% endblock %}

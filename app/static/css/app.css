@@ -570,3 +570,16 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); }
 .product-pref { font-size: var(--fs-xs); color: var(--accent-ink); background: #FDEBDD; border-radius: .4rem; padding: .15rem .45rem;
   margin: .2rem 0; }
 .product-pref .bi { color: var(--accent); }
+
+/* ---- Courses --------------------------------------------------------------------------------------------- */
+.course-card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, .1); }
+.lesson p, .lesson li { line-height: 1.6; }
+.quiz-list { padding-left: 1.25rem; }
+.quiz-question { margin-bottom: 1.1rem; }
+.quiz-question.is-missing legend { color: var(--danger-text); }
+.quiz-score { font-size: var(--fs-xl); font-weight: 700; }
+.quiz-score.pass { color: var(--success-text); }
+.quiz-score.fail { color: var(--warning); }
+.quiz-review.ok { border-left: 4px solid var(--success); }
+.quiz-review.wrong { border-left: 4px solid var(--danger); }
+.answer-row.is-correct { background: var(--success-tint); border-radius: .4rem; padding-left: .4rem !important; }

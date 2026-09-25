@@ -16,6 +16,11 @@
     GET   /admin/products                      ?q=&category=&store=&page=   products added by hand
     GET/POST /admin/products/new | /<id>/edit  POST /admin/products/<id>/delete
     GET   /admin/messages                      ?page=   Contact us messages   POST /<id>/read | /<id>/delete
+    GET   /admin/courses                       the short courses: questions, attempts, pass rate
+    GET   /admin/courses/<id>                  one course: every question and answer (+ POST .../questions to add)
+    GET   /admin/courses/<id>/attempts         who took the quiz, their scores
+    POST  /admin/questions/<id>/delete | /admin/questions/<id>/answers   (add an answer)
+    POST  /admin/answers/<id>/correct | /admin/answers/<id>/delete
     GET   /admin/audit                         ?action=&admin=&target=&start=&end=&page=
 
 Access: signed in AND ``User.IsAdmin`` (and not deactivated). The check is one ``before_request`` for the whole
@@ -30,10 +35,11 @@ from flask_login import current_user, login_user
 
 from app.extensions import db, login_manager
 from app.forms.admin import AdminNewUserForm, AdminUserForm, ApiKeyForm, CategoryMappingForm, ProductForm, StoreForm
-from app.models import CatalogueProduct, ContactMessage, Store
+from app.models import Answer, CatalogueProduct, ContactMessage, Course, Question, Store
 from app.models.admin import MAPPED_CATEGORIES
 from app.models.catalogue import PRODUCT_CATEGORIES
 from app.services import admin_stats, admin_stores, admin_users, audit, catalogue, category_map, integrations
+from app.services import courses as course_service
 from app.services.photos import PhotoError, save_product_photo
 from app.utils.validators import clean_phone_digits
 
@@ -718,6 +724,125 @@ def message_delete(message_id):
     db.session.commit()
     _done("Message deleted.")
     return redirect(url_for("admin.messages"))
+
+
+# --------------------------------------------------------------------------------------------- courses
+@bp.get("/courses")
+def courses():
+    course_service.ensure_courses()
+    rows = [(c, course_service.attempt_stats(c)) for c in course_service.all_courses()]
+    return render_template("admin/courses.html", rows=rows)
+
+
+def _course_or_404(course_id):
+    return db.session.get(Course, course_id) or abort(404)
+
+
+def _course_page(course, status=200, form=None):
+    return (
+        render_template(
+            "admin/course_detail.html",
+            course=course,
+            stats=course_service.attempt_stats(course),
+            form=form or {},
+            max_answers=course_service.MAX_ANSWERS,
+        ),
+        status,
+    )
+
+
+@bp.get("/courses/<course_id>")
+def course_detail(course_id):
+    return _course_page(_course_or_404(course_id))
+
+
+@bp.post("/courses/<course_id>/questions")
+def question_add(course_id):
+    course = _course_or_404(course_id)
+    answers = [request.form.get(f"answer_{i}", "") for i in range(4)]
+    try:
+        correct = int(request.form.get("correct", ""))
+    except ValueError:
+        correct = None
+    try:
+        question = course_service.add_question(
+            course, request.form.get("text"), answers, correct, request.form.get("explanation")
+        )
+    except course_service.CourseError as exc:
+        db.session.rollback()
+        _fail(str(exc))
+        return _course_page(course, 400, request.form)
+    db.session.flush()
+    audit.record(
+        me(), "question.create", f"question:{question.QuestionId}", {"course": course.Slug, "text": question.Text}
+    )
+    db.session.commit()
+    _done("Question added.")
+    return redirect(url_for("admin.course_detail", course_id=course.CourseId) + f"#q-{question.QuestionId}")
+
+
+@bp.post("/questions/<question_id>/delete")
+def question_delete(question_id):
+    question = db.session.get(Question, question_id) or abort(404)
+    course_id, text = question.CourseId, question.Text
+    course_service.delete_question(question)
+    audit.record(me(), "question.delete", f"question:{question_id}", {"text": text})
+    db.session.commit()
+    _done("Question removed.")
+    return redirect(url_for("admin.course_detail", course_id=course_id))
+
+
+@bp.post("/questions/<question_id>/answers")
+def answer_add(question_id):
+    question = db.session.get(Question, question_id) or abort(404)
+    try:
+        answer = course_service.add_answer(question, request.form.get("text"), request.form.get("correct") == "1")
+    except course_service.CourseError as exc:
+        db.session.rollback()
+        _fail(str(exc))
+    else:
+        db.session.flush()
+        audit.record(me(), "answer.create", f"answer:{answer.AnswerId}", {"question": question_id, "text": answer.Text})
+        db.session.commit()
+        _done("Answer added.")
+    return redirect(url_for("admin.course_detail", course_id=question.CourseId) + f"#q-{question_id}")
+
+
+@bp.post("/answers/<answer_id>/correct")
+def answer_correct(answer_id):
+    answer = db.session.get(Answer, answer_id) or abort(404)
+    course_service.mark_correct(answer)
+    audit.record(me(), "answer.mark_correct", f"answer:{answer_id}", {"text": answer.Text})
+    db.session.commit()
+    _done("Correct answer changed.")
+    return redirect(url_for("admin.course_detail", course_id=answer.question.CourseId) + f"#q-{answer.QuestionId}")
+
+
+@bp.post("/answers/<answer_id>/delete")
+def answer_delete(answer_id):
+    answer = db.session.get(Answer, answer_id) or abort(404)
+    question = answer.question
+    try:
+        course_service.delete_answer(answer)
+    except course_service.CourseError as exc:
+        db.session.rollback()
+        _fail(str(exc))
+    else:
+        audit.record(me(), "answer.delete", f"answer:{answer_id}", {"text": answer.Text})
+        db.session.commit()
+        _done("Answer removed.")
+    return redirect(url_for("admin.course_detail", course_id=question.CourseId) + f"#q-{question.QuestionId}")
+
+
+@bp.get("/courses/<course_id>/attempts")
+def course_attempts(course_id):
+    course = _course_or_404(course_id)
+    return render_template(
+        "admin/course_attempts.html",
+        course=course,
+        attempts=course_service.attempts_of(course),
+        stats=course_service.attempt_stats(course),
+    )
 
 
 # ------------------------------------------------------------------------------------------------ audit
