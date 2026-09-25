@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+{% from "admin/_pager.html" import pager %}
+{% block title %}Messages - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Messages</h1>
+      <p class="small text-muted-ink mb-0">Sent with the Contact us form on the About us page. {{ unread }} unread.</p>
+    </div>
+  </div>
+  <div class="d-grid gap-2">
+    {% for m in page.items %}
+      <article class="card app-card {{ '' if m.IsRead else 'border-brand' }}"><div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between gap-2 align-items-baseline">
+          <h2 class="h6 fw-bold mb-0 text-break">{% if not m.IsRead %}<span class="badge text-bg-warning me-1">New</span>{% endif %}{{ m.Subject }}</h2>
+          <span class="small text-muted-ink">{{ m.CreatedOn|sast_datetime }}</span>
+        </div>
+        <div class="small text-muted-ink mb-2">From {{ m.Name }} · <a href="mailto:{{ m.Email }}?subject={{ ('Re: ' ~ m.Subject)|urlencode }}">{{ m.Email }}</a>{% if m.UserId %} · <a href="{{ url_for('admin.user_detail', user_id=m.UserId) }}">student account</a>{% endif %}</div>
+        <p class="mb-2 text-break message-body">{{ m.Body }}</p>
+        <div class="d-flex gap-2 justify-content-end">
+          <a class="btn btn-sm btn-brand" href="mailto:{{ m.Email }}?subject={{ ('Re: ' ~ m.Subject)|urlencode }}"><i class="bi bi-reply me-1"></i>Reply</a>
+          <form method="post" action="{{ url_for('admin.message_read', message_id=m.MessageId, page=page.page) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Mark unread' if m.IsRead else 'Mark read' }}</button>
+          </form>
+          <form method="post" action="{{ url_for('admin.message_delete', message_id=m.MessageId) }}" data-confirm="Delete this message?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+          </form>
+        </div>
+      </div></article>
+    {% else %}
+      <div class="card app-card"><div class="card-body text-center text-muted-ink py-4">No messages yet.</div></div>
+    {% endfor %}
+  </div>
+  {{ pager(page, 'admin.messages') }}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

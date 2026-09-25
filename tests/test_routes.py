@@ -5,7 +5,6 @@ from app import create_app
 from app.config import TestConfig
 
 PROTECTED = [
-    "/",
     "/dashboard",
     "/budget",
     "/search",
@@ -29,7 +28,7 @@ def test_protected_pages_redirect_to_login(client, path):
 def test_login_page_is_public(client):
     response = client.get("/login")
     assert response.status_code == 200
-    assert b"Sign in with Microsoft" in response.data
+    assert b"Sign in with Microsoft" not in response.data  # removed from the sign-in page
 
 
 @pytest.mark.parametrize("path", USER_PAGES)
@@ -126,7 +125,7 @@ def test_microsoft_blueprint_only_registered_when_configured(monkeypatch):
     assert "/auth/azure/authorized" in rules
 
     login_page = app.test_client().get("/login")
-    assert b'href="/auth/microsoft"' in login_page.data
+    assert b'href="/auth/microsoft"' not in login_page.data  # the button is gone even when configured
 
 
 def test_theme_reaches_the_page_and_the_client_config(client, make_user, login):

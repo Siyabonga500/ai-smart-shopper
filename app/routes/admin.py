@@ -15,6 +15,7 @@
     GET/POST /admin/users/new                  add an account (student or admin)
     GET   /admin/products                      ?q=&category=&store=&page=   products added by hand
     GET/POST /admin/products/new | /<id>/edit  POST /admin/products/<id>/delete
+    GET   /admin/messages                      ?page=   Contact us messages   POST /<id>/read | /<id>/delete
     GET   /admin/audit                         ?action=&admin=&target=&start=&end=&page=
 
 Access: signed in AND ``User.IsAdmin`` (and not deactivated). The check is one ``before_request`` for the whole
@@ -29,7 +30,7 @@ from flask_login import current_user, login_user
 
 from app.extensions import db, login_manager
 from app.forms.admin import AdminNewUserForm, AdminUserForm, ApiKeyForm, CategoryMappingForm, ProductForm, StoreForm
-from app.models import CatalogueProduct, Store
+from app.models import CatalogueProduct, ContactMessage, Store
 from app.models.admin import MAPPED_CATEGORIES
 from app.models.catalogue import PRODUCT_CATEGORIES
 from app.services import admin_stats, admin_stores, admin_users, audit, catalogue, category_map, integrations
@@ -684,6 +685,39 @@ def product_delete(product_id):
     db.session.commit()
     _done(f"Deleted {product.Name}.")
     return redirect(url_for("admin.products"))
+
+
+# -------------------------------------------------------------------------------------------- messages
+@bp.get("/messages")
+def messages():
+    from sqlalchemy import select
+
+    from app.utils.pagination import paginate
+
+    page = paginate(select(ContactMessage).order_by(ContactMessage.CreatedOn.desc()), request.args.get("page"), 20)
+    unread = db.session.query(ContactMessage).filter(ContactMessage.IsRead.is_(False)).count()
+    return render_template("admin/messages.html", page=page, unread=unread)
+
+
+@bp.post("/messages/<message_id>/read")
+def message_read(message_id):
+    message = db.session.get(ContactMessage, message_id) or abort(404)
+    message.IsRead = not message.IsRead
+    audit.record(me(), "message.read" if message.IsRead else "message.unread", f"message:{message.MessageId}")
+    db.session.commit()
+    return redirect(url_for("admin.messages", page=request.args.get("page")))
+
+
+@bp.post("/messages/<message_id>/delete")
+def message_delete(message_id):
+    message = db.session.get(ContactMessage, message_id) or abort(404)
+    audit.record(
+        me(), "message.delete", f"message:{message.MessageId}", {"from": message.Email, "subject": message.Subject}
+    )
+    db.session.delete(message)
+    db.session.commit()
+    _done("Message deleted.")
+    return redirect(url_for("admin.messages"))
 
 
 # ------------------------------------------------------------------------------------------------ audit

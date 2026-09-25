@@ -79,6 +79,12 @@ class BaseConfig:
     MICROSOFT_CLIENT_SECRET = _env_first("MICROSOFT_CLIENT_SECRET", "MS_CLIENT_SECRET")
     MICROSOFT_TENANT = os.getenv("MICROSOFT_TENANT") or "common"
 
+    # --- About us > Contact us (shown on the page; messages sent with the form go to Admin > Messages)
+    CONTACT_EMAIL = os.getenv("CONTACT_EMAIL") or os.getenv("DEFAULT_ADMIN_EMAIL") or "siya1@gmail.com"
+    CONTACT_PHONE = os.getenv("CONTACT_PHONE") or ""
+    CONTACT_ADDRESS = os.getenv("CONTACT_ADDRESS") or "Durban, KwaZulu-Natal"
+    CONTACT_HOURS = os.getenv("CONTACT_HOURS") or "Monday to Friday, 08:00-16:30"
+
     # --- Sign-up: only DUT student addresses (e.g. 22226534@dut4life.ac.za). Empty = any address.
     STUDENT_EMAIL_DOMAIN = (os.getenv("STUDENT_EMAIL_DOMAIN", "dut4life.ac.za") or "").strip().lower().lstrip("@")
 

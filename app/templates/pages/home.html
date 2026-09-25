@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "partials/_ui.html" import price %}
+{% block title %}{{ app_name }} - shop smart on your NSFAS allowance{% endblock %}
+{% block main_class %}container home-main py-4{% endblock %}
+
+{% block content %}
+  {# Hero #}
+  <section class="home-hero" aria-labelledby="hero-title">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-7">
+        <p class="auth-kicker mb-2">For NSFAS students in Durban</p>
+        <h1 id="hero-title" class="home-title">Make your {{ nsfas_allowance|zar }} go further.</h1>
+        <p class="home-lede">Compare prices at the supermarkets and clothing shops around you, build a shopping list that stays inside your budget, and see the quickest way round the stores from your residence.</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-accent btn-lg" href="{{ url_for('auth.register') }}">Create your free account</a>
+          <a class="btn btn-outline-brand btn-lg" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Sign in</a>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="home-stats">
+          <div class="home-stat"><strong>{{ nsfas_allowance|zar }}</strong><span>monthly allowance, planned</span></div>
+          <div class="home-stat"><strong>{{ store_count or '30+' }}</strong><span>Durban stores compared</span></div>
+          <div class="home-stat"><strong>3</strong><span>categories: grocery, toiletries, clothing</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# How it works #}
+  <section class="home-steps" aria-labelledby="steps-title">
+    <h2 class="section-title" id="steps-title">How it works</h2>
+    <div class="row g-3">
+      {% for icon, title, text in [
+        ('wallet2', '1. Set your budget', 'Split your allowance into grocery, toiletries and clothing, up to ' ~ (nsfas_allowance|zar) ~ ' a month.'),
+        ('arrow-left-right', '2. Compare and add', 'See every store’s price and how far it is from you, then add the best deal to your list.'),
+        ('signpost-split', '3. Shop and save', 'Follow the route, tick items off as you buy them, and see how much you saved.'),
+      ] %}
+        <div class="col-md-4"><div class="card app-card h-100"><div class="card-body">
+          <span class="home-step-icon" aria-hidden="true"><i class="bi bi-{{ icon }}"></i></span>
+          <h3 class="h6 fw-bold mt-2">{{ title }}</h3>
+          <p class="small text-muted-ink mb-0">{{ text }}</p>
+        </div></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# Products: add to list needs an account, so the button goes to sign in and comes back to search #}
+  <section id="products" class="home-products" aria-labelledby="products-title">
+    <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2">
+      <h2 class="section-title mb-0" id="products-title">Products around Durban</h2>
+      <span class="small text-muted-ink">Lowest price we found today · sign in to add to your list</span>
+    </div>
+    {% if not sections %}
+      <div class="card app-card mt-3"><div class="card-body empty-state">
+        <i class="bi bi-basket2"></i>
+        <p class="mt-2 mb-3">Products are being updated. Sign in to search every store.</p>
+        <a class="btn btn-brand" href="{{ url_for('auth.login') }}">Sign in</a>
+      </div></div>
+    {% endif %}
+    {% for section in sections %}
+      <h3 class="home-category"><i class="bi bi-{{ {'Grocery': 'basket2', 'Toiletries': 'droplet', 'Clothes': 'handbag'}.get(section.category, 'tag') }} me-1" aria-hidden="true"></i>{{ 'Clothing' if section.category == 'Clothes' else section.category }}</h3>
+      <div class="home-grid">
+        {% for p in section.products %}
+          <article class="card app-card home-product">
+            <div class="home-product-img">
+              {% set src = p.image_url|safe_image_url %}
+              {% if src %}<img src="{{ src }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<i class="bi bi-image" aria-hidden="true"></i>{% endif %}
+            </div>
+            <div class="card-body d-flex flex-column">
+              <h4 class="home-product-name">{{ p.name }}</h4>
+              <div class="small text-muted-ink">{{ p.retailer or p.store_name }}{% if p.store_count > 1 %} · at {{ p.store_count }} stores{% endif %}</div>
+              <div class="small {{ 'text-warning-strong' if p.stock == 'Low stock' else 'text-success-strong' }}">{{ p.stock }}</div>
+              <div class="d-flex align-items-baseline gap-1 mt-1"><span class="small text-muted-ink">from</span>{{ price(p.price, "fw-bold fs-5") }}</div>
+              <a class="btn btn-brand btn-sm mt-auto" href="{{ url_for('auth.login', next=url_for('search.index', q=p.name)) }}"
+                 aria-label="Add {{ p.name }} to your list (sign in first)"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to list</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="home-cta card app-card" aria-label="About us"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h2 class="h5 fw-bold mb-1">Built by students, for students</h2>
+      <p class="mb-0 text-muted-ink">Find out who we are and how to reach us.</p>
+    </div>
+    <a class="btn btn-outline-brand" href="{{ url_for('pages.about') }}">About us</a>
+  </div></section>
+{% endblock %}

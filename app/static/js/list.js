@@ -34,6 +34,7 @@
         }
         var target = focusKey && body.querySelector('[data-focus="' + focusKey + '"]:not([disabled])');
         if (target) target.focus();
+        if (window.RouteMap) window.RouteMap.reload();   // the stores to visit may have changed
       });
   }
 

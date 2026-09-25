@@ -1,7 +1,7 @@
 """Dashboard (Home) - PDF view 1, Step 8.
 
     GET /dashboard   welcome, active budget, recently bought high-cost items, weather, shopping list,
-                     budget status and potential savings   ("/" shows the same page)
+                     budget status and potential savings   ("/" shows it too when signed in)
 
 The weather card is filled in by the browser from ``/api/weather`` so a slow weather service never slows the page.
 """
@@ -15,8 +15,7 @@ from app.services.weather import place_label
 bp = Blueprint("dashboard", __name__)
 
 
-@bp.get("/dashboard")
-@bp.get("/", endpoint="home")  # "/" shows the same page; /dashboard is the canonical URL
+@bp.get("/dashboard")  # "/" (pages.home) shows the same page to a signed-in student
 @login_required
 def index():
     data = dashboard_service.build(current_user)

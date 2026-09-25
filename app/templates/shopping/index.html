@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set use_maps = true %}
 {% block title %}My Shopping List - {{ app_name }}{% endblock %}
 
 {% block content %}
@@ -36,9 +37,25 @@
         </div>
       </div></section>
 
+      {# B. Map of the stores to travel to, from the student's home, in visiting order. Redrawn after every change. #}
+      <section class="card app-card mb-3" aria-labelledby="list-route-title"><div class="card-body">
+        <h2 class="h6 fw-bold mb-2" id="list-route-title"><i class="bi bi-signpost-split me-1" aria-hidden="true"></i>Stores to travel to</h2>
+        <div id="route-app" data-endpoint="{{ url_for('shop_api.shopping_route') }}" data-empty-hint=" Add products to see the stores you will travel to.">
+          <div class="route-map" id="route-map" role="application" aria-label="Map of the stores on your shopping list"></div>
+          <p class="text-center small mt-2 mb-1" id="route-stats" aria-live="polite"><span class="sk sk-w60 sk-center" aria-hidden="true"></span><span class="visually-hidden">Working out your route…</span></p>
+          <p class="small text-muted-ink mb-0" id="route-note"></p>
+          {% if not current_user.has_location %}
+            <p class="small text-muted-ink mb-0"><i class="bi bi-geo-alt me-1"></i>The route starts from central Durban because your address is not saved yet. <a href="{{ url_for('profile.edit') }}">Add it in your profile</a>.</p>
+          {% endif %}
+        </div>
+      </div></section>
+
       <div id="list-body" aria-live="polite">{% include "shopping/_body.html" %}</div>
     </div>
   {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if budget %}<script src="{{ url_for('static', filename='js/list.js') }}"></script>{% endif %}{% endblock %}
+{% block scripts %}{% if budget %}
+  <script src="{{ url_for('static', filename='js/list.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/route.js') }}"></script>
+{% endif %}{% endblock %}

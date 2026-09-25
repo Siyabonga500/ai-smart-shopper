@@ -11,6 +11,11 @@ Rules the app is built around:
   cannot be saved. Money already *spent* on budgets finished earlier in the month counts; money saved does not.
 - Students sign up with their DUT student email (`...@dut4life.ac.za`, set by `STUDENT_EMAIL_DOMAIN`) and an ID
   number of exactly 13 digits (any digits are accepted; the box stops at 13).
+- Visitors land on a public **home page** (top bar: Home, Products, About us, Contact us, Sign in, Create account)
+  showing products around Durban; "Add to list" sends them to sign in and then to that product in search. **About
+  us** has a **Contact us** form whose messages admins read under **Admin > Messages** (`CONTACT_EMAIL`,
+  `CONTACT_PHONE`, `CONTACT_ADDRESS`, `CONTACT_HOURS` set the details shown). Every page ends with the same footer.
+- The shopping list shows a map of the stores to travel to, redrawn as items change.
 - On the shopping list each item has a **Purchased** button to tick it off in the shop before "Done – Purchase
   Completed". After Done, the student sees how much they used and how much they saved from the budget.
 - A list that is **over budget** still accepts new items, but "Proceed to Summary" is disabled until it fits.

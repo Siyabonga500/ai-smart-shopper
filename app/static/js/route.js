@@ -47,26 +47,34 @@
     return box;
   }
 
+  var layers = L.layerGroup().addTo(map);
+  function pinOn(latlng, label, cls, title) {
+    return pin(latlng, label, cls, title).removeFrom(map).addTo(layers);
+  }
+
   function show(data) {
+    layers.clearLayers();
+    stats.classList.remove("text-danger");
     var home = [data.home.lat, data.home.lng];
     map.setView(home, 13);
     var bounds = L.latLngBounds([home]);
 
     if (data.geometry && data.geometry.length > 1) {
-      var line = L.polyline(data.geometry, { color: "#2C666E", weight: 5, opacity: 0.85 }).addTo(map);
+      var line = L.polyline(data.geometry, { color: "#2C666E", weight: 5, opacity: 0.85 }).addTo(layers);
       bounds.extend(line.getBounds());
     }
-    pin(home, "S", "start", "Start").bindPopup(popup(data.return_home ? "Start and finish: home" : "Start: home"));
+    pinOn(home, "S", "start", "Start").bindPopup(popup(data.return_home ? "Start and finish: home" : "Start: home"));
     data.stops.forEach(function (stop) {
       var latlng = [stop.lat, stop.lng];
       bounds.extend(latlng);
-      pin(latlng, String(stop.order), "stop", "Stop " + stop.order + ": " + stop.name)
+      pinOn(latlng, String(stop.order), "stop", "Stop " + stop.order + ": " + stop.name)
         .bindPopup(popup("Stop " + stop.order + ": " + stop.name, [stop.address, stop.item_count + (stop.item_count === 1 ? " item" : " items")]));
     });
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
 
     if (!data.stops.length) {
       stats.textContent = "None of these stores has a map position, so there is no route to show.";
+      note.textContent = "";
       return;
     }
     stats.textContent = "";
@@ -74,7 +82,7 @@
     distance.textContent = String(data.distance_km).replace(/\.0$/, "") + " km";
     var time = document.createElement("strong");
     time.textContent = data.duration_min + " min";
-    stats.append("Total distance: ", distance, " • Est. travel time: ", time);
+    stats.append(data.stops.length + (data.stops.length === 1 ? " store" : " stores") + " • Total distance: ", distance, " • Est. travel time: ", time);
     var parts = [];
     if (data.source === "estimate") parts.push("These figures are estimated from straight-line distances because road routing was not available.");
     if (data.return_home) parts.push("The trip ends back at home.");
@@ -82,13 +90,21 @@
     note.textContent = parts.join(" ");
   }
 
-  App.api(app.dataset.endpoint)
-    .then(show)
-    .catch(function (error) {
-      App.errorMessage(error, "The route could not be loaded.").then(function (message) {
-        stats.textContent = message + " The stores to visit are listed below.";
-        stats.classList.add("text-danger");
+  function load() {
+    return App.api(app.dataset.endpoint)
+      .then(show)
+      .catch(function (error) {
+        layers.clearLayers();
+        App.errorMessage(error, "The route could not be loaded.").then(function (message) {
+          stats.textContent = message + (app.dataset.emptyHint || " The stores to visit are listed below.");
+          stats.classList.add("text-danger");
+          note.textContent = "";
+        });
+        map.setView([-29.8587, 31.0218], 11);
       });
-      map.setView([-29.8587, 31.0218], 11);
-    });
+  }
+
+  // The shopping list page calls this after every change, so the map follows the list.
+  window.RouteMap = { reload: load };
+  load();
 })();

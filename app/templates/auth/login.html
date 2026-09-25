@@ -12,7 +12,7 @@
       <h1 id="welcome-title">Spend your allowance with a plan.</h1>
       <p class="auth-lede">Compare everyday prices in Durban, build a list, and keep your monthly budget visible before you shop.</p>
       <ul class="auth-benefits list-unstyled">
-        <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Set a budget around the <strong>R1 750</strong> monthly student reference.</span></li>
+        <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Plan within your <strong>R1 750</strong> monthly NSFAS allowance.</span></li>
         <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Find lower prices across nearby stores.</span></li>
         <li><i class="bi bi-check2-circle" aria-hidden="true"></i><span>Keep your shopping list ready on your phone.</span></li>
       </ul>
@@ -28,26 +28,13 @@
 
         <form method="post" action="{{ url_for('auth.login', next=next_url) if next_url else url_for('auth.login') }}" novalidate>
           {{ form.hidden_tag() }}
-          {{ control(form.Email, type="email", autocomplete="username", autofocus=true, maxlength=100, placeholder="you@example.com") }}
+          {{ control(form.Email, type="email", autocomplete="username", autofocus=true, maxlength=100, placeholder="22226534@dut4life.ac.za") }}
           {{ password(form.Password, autocomplete="current-password", placeholder="Enter your password") }}
           <div class="form-check mb-3">
             {{ form.Remember(class_="form-check-input") }}
             <label class="form-check-label" for="{{ form.Remember.id }}">{{ form.Remember.label.text }}</label>
           </div>
           <button class="btn btn-brand btn-lg w-100" type="submit">Sign in</button>
-
-          <div class="auth-divider" aria-hidden="true"><span>or continue with</span></div>
-
-          {% if microsoft_enabled %}
-            <a class="btn btn-outline-brand w-100" href="{{ url_for('auth.microsoft') }}">
-              <i class="bi bi-microsoft me-2" aria-hidden="true"></i>Sign in with Microsoft
-            </a>
-          {% else %}
-            <button class="btn btn-outline-brand w-100" type="button" disabled>
-              <i class="bi bi-microsoft me-2" aria-hidden="true"></i>Sign in with Microsoft
-            </button>
-            <p class="form-text mt-2 mb-0 text-center">Use your email and password instead.</p>
-          {% endif %}
 
           <p class="auth-switch text-center mt-4 mb-0">New here? <a href="{{ url_for('auth.register') }}">Create your student account</a></p>
         </form>

@@ -1,0 +1,22 @@
+{# Top bar for visitors who have not signed in: Home, Products, About us, and Sign in / Create account. #}
+<nav class="navbar navbar-expand-md app-topbar public-nav" aria-label="Main">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('pages.home') }}"><i class="bi bi-basket2-fill me-2" aria-hidden="true"></i>{{ app_name }}</a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#public-menu"
+            aria-controls="public-menu" aria-expanded="false" aria-label="Show the menu">
+      <i class="bi bi-list text-white fs-3"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="public-menu">
+      <ul class="navbar-nav me-auto gap-md-1">
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'pages.home' }}" href="{{ url_for('pages.home') }}">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('pages.home') }}#products">Products</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'pages.about' }}" href="{{ url_for('pages.about') }}">About us</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('pages.about') }}#contact">Contact us</a></li>
+      </ul>
+      <div class="d-flex gap-2 mt-2 mt-md-0">
+        <a class="btn btn-sm btn-outline-light {{ 'active' if request.endpoint == 'auth.login' }}" href="{{ url_for('auth.login') }}"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Sign in</a>
+        <a class="btn btn-sm btn-accent" href="{{ url_for('auth.register') }}">Create account</a>
+      </div>
+    </div>
+  </div>
+</nav>

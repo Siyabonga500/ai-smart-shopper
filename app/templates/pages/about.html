@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "partials/_form_macros.html" import control %}
+{% block title %}About us - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <section class="about-hero" aria-labelledby="about-title">
+    <p class="auth-kicker mb-2">About us</p>
+    <h1 id="about-title" class="home-title">Helping Durban students stretch every rand.</h1>
+    <p class="home-lede mb-0">{{ app_name }} started with a simple question from students living on the NSFAS meal allowance: <em>where is it cheapest, and is it worth the trip?</em> We built one place to plan the month, compare the shops and keep track of what was spent.</p>
+  </section>
+
+  <div class="row g-3 mb-4">
+    {% for icon, title, text in [
+      ('bullseye', 'Our mission', 'Make sure no student runs out of food money before the month ends, by making prices and budgets easy to see.'),
+      ('shop', 'What we compare', 'Grocery, toiletries and clothing at the big supermarkets and clothing shops around Durban, with the distance from your residence.'),
+      ('shield-check', 'Your information', 'We never keep your full ID number, never sell your data, and never send you to a retailer’s website. See our terms and privacy policy.'),
+    ] %}
+      <div class="col-md-4"><div class="card app-card h-100"><div class="card-body">
+        <span class="home-step-icon" aria-hidden="true"><i class="bi bi-{{ icon }}"></i></span>
+        <h2 class="h6 fw-bold mt-2">{{ title }}</h2>
+        <p class="small text-muted-ink mb-0">{{ text }}</p>
+      </div></div></div>
+    {% endfor %}
+  </div>
+
+  <section class="card app-card mb-4" aria-labelledby="what-title"><div class="card-body">
+    <h2 class="h5 fw-bold" id="what-title">What you can do</h2>
+    <ul class="about-list">
+      <li>Set a monthly budget of up to {{ nsfas_allowance|zar }}, split by category or as one combined amount.</li>
+      <li>Compare a product’s price at every nearby store and see how far each store is from you.</li>
+      <li>Build a shopping list that warns you before you go over budget, with cheaper alternatives.</li>
+      <li>See the stores on a map in the best order to visit them, and tick items off as you buy them.</li>
+      <li>Look back at every trip: what you spent, where, and how much you saved.</li>
+    </ul>
+  </div></section>
+
+  {# Contact us #}
+  <section id="contact" class="row g-3 mb-2" aria-labelledby="contact-title">
+    <div class="col-lg-5">
+      <div class="card app-card h-100"><div class="card-body">
+        <h2 class="h5 fw-bold" id="contact-title">Contact us</h2>
+        <p class="text-muted-ink">Questions, a store we are missing, or a price that looks wrong? We would love to hear from you.</p>
+        <ul class="list-unstyled contact-list mb-0">
+          {% if contact.email %}<li><i class="bi bi-envelope" aria-hidden="true"></i><div><strong>Email</strong><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></div></li>{% endif %}
+          {% if contact.phone %}<li><i class="bi bi-telephone" aria-hidden="true"></i><div><strong>Phone</strong><a href="tel:{{ contact.phone|replace(' ', '') }}">{{ contact.phone }}</a></div></li>{% endif %}
+          {% if contact.address %}<li><i class="bi bi-geo-alt" aria-hidden="true"></i><div><strong>Where we are</strong><span>{{ contact.address }}</span></div></li>{% endif %}
+          {% if contact.hours %}<li><i class="bi bi-clock" aria-hidden="true"></i><div><strong>We reply</strong><span>{{ contact.hours }}</span></div></li>{% endif %}
+        </ul>
+      </div></div>
+    </div>
+    <div class="col-lg-7">
+      <form class="card app-card h-100" method="post" action="{{ url_for('pages.about') }}#contact" novalidate aria-label="Send us a message"><div class="card-body">
+        {{ form.hidden_tag() }}
+        <div class="row">
+          <div class="col-md-6">{{ control(form.Name, maxlength=100, autocomplete="name") }}</div>
+          <div class="col-md-6">{{ control(form.Email, type="email", maxlength=100, autocomplete="email") }}</div>
+        </div>
+        {{ control(form.Subject, maxlength=150) }}
+        {{ control(form.Message, rows=5, maxlength=3000) }}
+        <div class="visually-hidden" aria-hidden="true">{{ form.Website(tabindex="-1", autocomplete="off") }}</div>
+        <button class="btn btn-brand" type="submit"><i class="bi bi-send me-1" aria-hidden="true"></i>Send message</button>
+      </div></form>
+    </div>
+  </section>
+{% endblock %}

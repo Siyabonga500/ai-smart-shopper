@@ -162,8 +162,14 @@ def _register_template_helpers(app: Flask) -> None:
     @app.context_processor
     def inject_globals():
         cfg = app.config
+        from app.services.home import tip_of_the_day
+        from app.utils.dates import today_sast
+
+        today = today_sast()
         return {
             "app_name": cfg["APP_NAME"],
+            "footer_tip": tip_of_the_day(today),
+            "current_year": today.year,
             "theme": cfg["THEME"],
             "nsfas_allowance": cfg["NSFAS_MONTHLY_ALLOWANCE"],
             # Read by static/js/main.js as window.APP_CONFIG

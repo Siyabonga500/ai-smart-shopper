@@ -355,7 +355,7 @@ def test_a_price_service_outage_does_not_break_the_dashboard(app, user, provider
 # ================================================================================================ the page
 def test_dashboard_needs_sign_in(client):
     assert client.get("/dashboard").status_code == 302
-    assert client.get("/").status_code == 302
+    assert b"Welcome," not in client.get("/").data  # "/" is the public home page for visitors
 
 
 def test_root_and_dashboard_show_the_same_page(signed_in):
