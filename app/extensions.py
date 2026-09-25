@@ -45,15 +45,23 @@ search_limiter = SlidingWindowLimiter(
 )  # product searches per student (they cost money on live APIs)
 
 
+SQLITE_BUSY_TIMEOUT_MS = 30_000
+
+
 @event.listens_for(Engine, "connect")
 def _enforce_sqlite_foreign_keys(dbapi_connection, _connection_record):
-    """SQLite ignores foreign keys (and ON DELETE CASCADE) unless told otherwise.
+    """SQLite settings for every new connection. It ignores foreign keys (and ON DELETE CASCADE) unless told otherwise.
 
     Turning them on makes the dev database behave like PostgreSQL in production.
     """
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        # Several requests use the SQLite file at once (the dev server is threaded). Wait up to 30 s for another
+        # writer instead of failing after 5 s with "database is locked", and use write-ahead logging so pages that
+        # only read never block a save (and a save never blocks them).
+        cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+        cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 
 

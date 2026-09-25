@@ -326,7 +326,10 @@ def refresh_alternatives(items: list[ListItem], provider: RetailProvider, user: 
     ttl = current_app.config["ALTERNATIVES_TTL"]
     now = utcnow()
     center = student_center(user)
-    changed = False
+    # Look everything up first and write once at the end. Changing an item before the next lookup would let the
+    # lookup's own queries flush the change and hold SQLite's write lock through every (possibly slow, networked)
+    # price lookup, and every other save in the app would fail with "database is locked" meanwhile.
+    found: list[tuple[ListItem, dict | None, dict | None]] = []
     for item in items:
         info = item.CheaperAlternativeJSON
         if not force and _fresh(info, ttl, now):
@@ -336,14 +339,20 @@ def refresh_alternatives(items: list[ListItem], provider: RetailProvider, user: 
         except RetailAPIError:
             current_app.logger.warning("Could not check cheaper alternatives for %s", item.ItemName, exc_info=True)
             continue
-        item.CheaperAlternativeJSON = {
-            "alternative": alternative,
-            "replaced": (info or {}).get("replaced"),
-            "checked_at": now.isoformat(),
-        }
-        changed = True
-    if changed:
+        found.append((item, info, alternative))
+    if not found:
+        return
+    try:
+        for item, info, alternative in found:
+            item.CheaperAlternativeJSON = {
+                "alternative": alternative,
+                "replaced": (info or {}).get("replaced"),
+                "checked_at": now.isoformat(),
+            }
         db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def alternative_of(item: ListItem) -> dict | None:

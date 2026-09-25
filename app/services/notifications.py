@@ -223,25 +223,29 @@ def check_prices(user, provider=None) -> list[Notification]:
         return []
     try:
         provider = provider or get_retail_provider()
-        created = _price_drops(user, items, provider)
+        # Every lookup happens before anything is written (see shopping.refresh_alternatives), so SQLite's write
+        # lock is never held while waiting on the price service.
         shopping.refresh_alternatives(items, provider, user)
+        drops = _find_price_drops(user, items, provider)
     except RetailAPIError:
         log.warning("Price check for %s failed; will try again later", user.UserId, exc_info=True)
         return []
     except RetailConfigError as exc:  # a missing API key must not break page loads
         log.warning("Price check skipped: %s", exc)
         return []
+    created = _record_price_drops(user, drops)
     created += _cheaper_alternatives(user.UserId, items)
     return created
 
 
-def _price_drops(user, items: list[ListItem], provider) -> list[Notification]:
+def _find_price_drops(user, items: list[ListItem], provider) -> list[tuple[ListItem, Decimal, Decimal, Decimal]]:
+    """``[(item, old unit price, new price, drop fraction), ...]``: asks the provider, writes nothing."""
     from app.services import shopping
 
     threshold = Decimal(str(current_app.config["NOTIFICATION_PRICE_DROP"]))
     center = shopping.student_center(user)
     radius = current_app.config["SEARCH_MAX_RADIUS_KM"]
-    created = []
+    drops = []
     for item in items:
         unit = to_decimal(item.UnitCost)
         if not item.BarCode or not item.StoreName or unit <= 0:
@@ -258,8 +262,14 @@ def _price_drops(user, items: list[ListItem], provider) -> list[Notification]:
             continue
         now_price = money(offer.price)
         drop = (unit - now_price) / unit
-        if drop < threshold:
-            continue
+        if drop >= threshold:
+            drops.append((item, unit, now_price, drop))
+    return drops
+
+
+def _record_price_drops(user, drops) -> list[Notification]:
+    created = []
+    for item, unit, now_price, drop in drops:
         row = notify(
             user.UserId,
             PRICE_DROP,
@@ -306,12 +316,18 @@ def _cheaper_alternatives(user_id: str, items: list[ListItem]) -> list[Notificat
 
 # ------------------------------------------------------------------------------------------ evaluating
 def evaluate(user, prices: bool = False, provider=None, now: datetime | None = None) -> list[Notification]:
-    """Run the rules for ``user`` and commit. ``prices`` also runs the price rules (throttled per student)."""
+    """Run the rules for ``user`` and commit. ``prices`` also runs the price rules (throttled per student).
+
+    The budget rules are committed before the price rules start, so no write is left open during price lookups.
+    """
     created = check_budget(user.UserId, now)
-    if prices and _price_check_due(user.UserId):
-        created += check_prices(user, provider)
     if created:
         db.session.commit()
+    if prices and _price_check_due(user.UserId):
+        found = check_prices(user, provider)
+        if found:
+            db.session.commit()
+        created += found
     return created
 
 

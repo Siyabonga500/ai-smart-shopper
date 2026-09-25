@@ -9,6 +9,8 @@ app/static/uploads/
 .coverage
 *.sqlite3
 *.db
+*.db-wal
+*.db-shm
 .DS_Store
 app/logs/
 .ruff_cache/
