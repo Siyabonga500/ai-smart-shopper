@@ -39,7 +39,7 @@ def test_seed_data_is_sane():
         # everything must be inside greater Durban (roughly 60 km around the centre)
         assert distance_km(*DURBAN, seed.lat, seed.lng) < 60, seed.name
         assert seed.source in ("official", "geocoded", "approximate")
-        assert seed.name.startswith(seed.brand.replace("SPAR", "SUPERSPAR") if seed.brand == "SPAR" else seed.brand)
+        assert seed.name.startswith(seed.brand) or seed.name.startswith("SUPER" + seed.brand)
         assert seed.address and seed.link.startswith("https://")
     assert {seed.brand for seed in DURBAN_STORES} == set(REQUESTED_BRANCHES)
 
@@ -224,7 +224,8 @@ def test_endpoint_rejects_bad_parameters(client, signed_in, params):
 
 def test_endpoint_brand_filter(client, signed_in, seeded):
     stores = _near(client, lat=-29.86, lng=31.02, radius=50, brand="SPAR").get_json()["stores"]
-    assert [s["name"] for s in stores] == ["SUPERSPAR Glenwood"]
+    assert {s["name"] for s in stores} == {seed.name for seed in DURBAN_STORES if seed.brand == "SPAR"}
+    assert all(s["brand"] == "SPAR" for s in stores)
 
 
 # ------------------------------------------------------------------------------ the search page
@@ -238,3 +239,15 @@ def test_the_stores_the_search_page_lists_are_centred_on_the_users_address(clien
     login(make_user(Latitude=-29.7268, Longitude=31.07))  # Umhlanga: not the Durban default
     umhlanga = _near(client, radius=3).get_json()
     assert umhlanga["center"] == {"lat": -29.7268, "lng": 31.07}
+
+
+def test_durban_cbd_branches_of_every_requested_chain():
+    from app.data.durban_stores import ALL_STORES
+
+    cbd = {seed.brand for seed in ALL_STORES if seed.suburb == "Durban Central"}
+    assert {"Mr Price", "Jet", "SPAR", "Shoprite", "Boxer", "Markham", "Relay Jeans", "M&L"} <= cbd
+    for seed in ALL_STORES:
+        if seed.suburb == "Durban Central":
+            assert distance_km(*DURBAN, seed.lat, seed.lng) < 3, seed.name  # all within the CBD
+    kinds = {seed.brand: seed.kind for seed in ALL_STORES}
+    assert kinds["Boxer"] == "grocery" and kinds["Markham"] == kinds["M&L"] == kinds["Relay Jeans"] == "clothing"

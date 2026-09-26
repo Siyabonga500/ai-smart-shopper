@@ -4,7 +4,7 @@ import re
 
 from flask_wtf import FlaskForm
 from flask_wtf.file import MultipleFileField
-from wtforms import DecimalField, IntegerField, PasswordField, SelectField, StringField, TextAreaField
+from wtforms import BooleanField, DecimalField, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, Regexp, ValidationError
 
 from app.forms.validators import cellphone_10_digits, email_address, name_field, normalise_text, password_policy
@@ -195,12 +195,18 @@ class ProductForm(FlaskForm):
             NumberRange(min=0.01, max=100000, message="The price must be between R0.01 and R100 000."),
         ],
     )
+    SalePrice = DecimalField(
+        "Sale price (R)",
+        places=2,
+        validators=[Optional(), NumberRange(min=0.01, max=100000, message="The sale price must be more than R0.")],
+    )
     ImageUrl = StringField(
         "Image URL", filters=[_blank], validators=[Optional(), Length(max=1000, message="At most 1000 characters.")]
     )
     ImageFile = MultipleFileField("Or upload a picture")
-    PhotoUrls = TextAreaField("Photo URLs (one per line)", filters=[_blank], validators=[Optional()])
-    Photos = MultipleFileField("Upload photos")
+    PhotoUrls = TextAreaField("Picture URLs (one per line)", filters=[_blank], validators=[Optional()])
+    Photos = MultipleFileField("Upload pictures")
+    RemovePictures = BooleanField("Remove the current uploaded pictures")
     Size = StringField("Size", filters=[_blank], validators=[Length(max=30, message="At most 30 characters.")])
     Colour = StringField("Colour", filters=[_blank], validators=[Length(max=40, message="At most 40 characters.")])
     StockStatus = SelectField("Stock status", choices=list(STOCK_STATUSES), validate_choice=True)
@@ -272,6 +278,10 @@ class ProductForm(FlaskForm):
         for line in self.photo_urls:
             if not self._http_url(line) or len(line) > 1000:
                 raise ValidationError(f"“{line[:60]}” is not a web address (it must start with https://).")
+
+    def validate_SalePrice(self, field):
+        if field.data is not None and self.Price.data is not None and field.data >= self.Price.data:
+            raise ValidationError("The sale price must be lower than the normal price. Leave it empty if not on sale.")
 
     def validate(self, extra_validators=None):
         valid = super().validate(extra_validators)

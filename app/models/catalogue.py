@@ -14,7 +14,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.utils.dates import utcnow
-from app.utils.ids import PRODUCT_PREFIX, generate_id
+from app.utils.ids import PICTURE_PREFIX, PRODUCT_PREFIX, generate_id
 from app.utils.money import to_decimal
 
 PRODUCT_CATEGORIES = ("Grocery", "Toiletries", "Clothing")
@@ -22,6 +22,27 @@ BUDGET_CATEGORY = {"Grocery": "Grocery", "Toiletries": "Toiletries", "Clothing":
 STOCK_STATUSES = (("in_stock", "In stock"), ("low_stock", "Low stock"), ("out_of_stock", "Out of stock"))
 STOCK_LABELS = dict(STOCK_STATUSES)
 CLOTHING_SIZES = ("XS", "S", "M", "L", "XL", "XXL", "3XL", "One size")
+
+
+def sale_percent(original, now) -> int:
+    """How much cheaper ``now`` is than ``original``, in whole percent (R300 -> R250 is 17%)."""
+    original, now = to_decimal(original), to_decimal(now)
+    if original <= 0 or now >= original:
+        return 0
+    return int(((original - now) / original * 100).quantize(Decimal("1"), rounding="ROUND_HALF_UP"))
+
+
+class ProductPicture(db.Model):
+    """Picture addresses an admin pasted for a product by barcode (Admin > Pictures). They are shown for that barcode
+    whatever the price source (the built-in catalogue has no pictures of its own). Several per product: in order."""
+
+    __tablename__ = "product_pictures"
+
+    PictureId = db.Column(db.String(30), primary_key=True, default=lambda: generate_id(PICTURE_PREFIX))
+    Barcode = db.Column(db.String(50), nullable=False, index=True)
+    Url = db.Column(db.String(1000), nullable=False)
+    Position = db.Column(db.Integer, nullable=False, default=0)
+    CreatedOn = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
 
 class CatalogueProduct(db.Model):
@@ -34,6 +55,7 @@ class CatalogueProduct(db.Model):
     Sku = db.Column(db.String(50), nullable=True, index=True)  # clothing
     Barcode = db.Column(db.String(50), nullable=True, index=True)  # grocery and toiletries
     Price = db.Column(db.Numeric(10, 2), nullable=False)
+    SalePrice = db.Column(db.Numeric(10, 2), nullable=True)  # on sale: what students pay now ("Was" Price, "Now" this)
     ImageUrl = db.Column(db.String(1000), nullable=True)  # the main picture
     Photos = db.Column(db.JSON, nullable=True)  # clothing: every photo, the first one is also ImageUrl
     Size = db.Column(db.String(30), nullable=True)
@@ -70,7 +92,20 @@ class CatalogueProduct(db.Model):
 
     @property
     def price_decimal(self) -> Decimal:
-        return to_decimal(self.Price)
+        """What a student pays now: the sale price while there is one."""
+        return to_decimal(self.SalePrice) if self.on_sale else to_decimal(self.Price)
+
+    @property
+    def on_sale(self) -> bool:
+        return self.SalePrice is not None and to_decimal(self.SalePrice) < to_decimal(self.Price)
+
+    @property
+    def price_before_sale(self) -> Decimal | None:
+        return to_decimal(self.Price) if self.on_sale else None
+
+    @property
+    def sale_percent(self) -> int:
+        return sale_percent(self.Price, self.SalePrice) if self.on_sale else 0
 
     @property
     def photos(self) -> list[str]:

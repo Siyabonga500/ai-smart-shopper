@@ -73,6 +73,8 @@ _RETAILER_ALIASES = {
     "woolies": "Woolworths",
     "spar": "SPAR",
     "superspar": "SPAR",
+    "boxer": "Boxer",
+    "boxer superstores": "Boxer",
 }
 
 
@@ -121,10 +123,15 @@ class Product:
     colour: str | None = None
     stock_status: str | None = None  # in_stock | low_stock | out_of_stock (None: only in_stock is known)
     source: str | None = None  # "admin" for a product an admin added by hand
+    images: tuple = ()  # every picture of the product (the first is image_url); more than one shows arrows
+    original_price: Decimal | None = None  # the price before a sale ("Was"), when ``price`` is a sale price
 
     def to_dict(self) -> dict:
         data = {name: getattr(self, name) for name in self.__dataclass_fields__}
         data["price"] = str(self.price.quantize(Decimal("0.01")))  # exact, JSON-safe
+        data["images"] = list(self.images)
+        if self.original_price is not None:
+            data["original_price"] = str(self.original_price.quantize(Decimal("0.01")))
         if self.distance_km is not None:
             data["distance_km"] = round(self.distance_km, 2)
         return data
@@ -1188,6 +1195,19 @@ class CachedProvider(RetailProvider):
         self.inner, self.ttl, self.name, self.categories = inner, ttl, inner.name, categories
         self.catalogue = catalogue
 
+    def _pictures(self, products: list[Product]) -> list[Product]:
+        """Pictures an admin pasted for a barcode (Admin > Pictures) replace the provider's picture. Read every call,
+        after the cache, so a new picture shows at once."""
+        if self.catalogue is None or not products:
+            return products
+        table = self.catalogue.pictures_for({p.barcode for p in products if p.barcode})
+        if not table:
+            return products
+        return [
+            replace(p, image_url=table[p.barcode][0], images=tuple(table[p.barcode])) if p.barcode in table else p
+            for p in products
+        ]
+
     def _own(self, lookup, *args) -> list[Product]:
         if self.catalogue is None:
             return []
@@ -1234,7 +1254,7 @@ class CachedProvider(RetailProvider):
 
     def search_products(self, query, lat, lng, radius_km=15, category=None):
         own = self._own("matching", query, lat, lng, radius_km, category)
-        return self._with_own(own, lambda: self._search_live(query, lat, lng, radius_km, category))
+        return self._pictures(self._with_own(own, lambda: self._search_live(query, lat, lng, radius_km, category)))
 
     def _search_live(self, query, lat, lng, radius_km, category):
         table = self._table()
@@ -1269,8 +1289,8 @@ class CachedProvider(RetailProvider):
             return self._apply(offers, self._table())
 
         if not own:
-            return live()
-        return sorted(self._with_own(own, live), key=lambda p: (p.price, p.store_name or ""))
+            return self._pictures(live())
+        return self._pictures(sorted(self._with_own(own, live), key=lambda p: (p.price, p.store_name or "")))
 
     def get_stores_near(self, lat, lng, radius_km=15):
         return self._cached(

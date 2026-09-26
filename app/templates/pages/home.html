@@ -70,7 +70,13 @@
               <h4 class="home-product-name">{{ p.name }}</h4>
               <div class="small text-muted-ink">{{ p.retailer or p.store_name }}{% if p.store_count > 1 %} · at {{ p.store_count }} stores{% endif %}</div>
               <div class="small {{ 'text-warning-strong' if p.stock == 'Low stock' else 'text-success-strong' }}">{{ p.stock }}</div>
-              <div class="d-flex align-items-baseline gap-1 mt-1"><span class="small text-muted-ink">from</span>{{ price(p.price, "fw-bold fs-5") }}</div>
+              {% if p.original_price %}
+                <div class="small text-muted-ink mt-1">Was <s>{{ p.original_price|zar }}</s></div>
+                <div class="d-flex align-items-baseline gap-1"><span class="small fw-600">Now</span>{{ price(p.price, "fw-bold fs-5") }}</div>
+                <span class="sale-badge align-self-start mb-2">-{{ p.sale_percent }}% · save {{ p.sale_saving|zar }}</span>
+              {% else %}
+                <div class="d-flex align-items-baseline gap-1 mt-1"><span class="small text-muted-ink">from</span>{{ price(p.price, "fw-bold fs-5") }}</div>
+              {% endif %}
               <a class="btn btn-brand btn-sm mt-auto" href="{{ url_for('auth.login', next=url_for('search.index', q=p.name)) }}"
                  aria-label="Add {{ p.name }} to your list (sign in first)"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to list</a>
             </div>

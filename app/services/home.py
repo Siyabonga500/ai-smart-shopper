@@ -9,6 +9,7 @@ from __future__ import annotations
 from flask import current_app
 
 from app.services.http import ExternalAPIError
+from app.services.products import sale_fields
 from app.services.retail_api import RetailConfigError, get_retail_provider, group_by_barcode
 from app.utils.geo import default_map_center
 from app.utils.money import money
@@ -58,6 +59,7 @@ def featured_products(per_category: int = PER_CATEGORY) -> list[dict]:
                     "brand": best.brand,
                     "barcode": best.barcode,
                     "price": money(best.price),
+                    **sale_fields(best),
                     "image_url": best.image_url,
                     "retailer": best.retailer,
                     "store_name": best.store_name,

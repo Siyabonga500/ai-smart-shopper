@@ -32,6 +32,7 @@ COURSE_PREFIX = "CRS"
 QUESTION_PREFIX = "QST"
 ANSWER_PREFIX = "ANS"
 ATTEMPT_PREFIX = "ATT"
+PICTURE_PREFIX = "PIC"
 
 
 def generate_id(prefix: str) -> str:

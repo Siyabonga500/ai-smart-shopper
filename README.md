@@ -18,6 +18,10 @@ Rules the app is built around:
 - Search: "All" with no search words shows every product; filters (price, distance 0-60 km, stores) are optional.
   Saved preferences (store, brand, category, dietary) mark matching products "Matches your preferences" and, when
   the student has any, search shows those first ("My preferences first", changeable in Sort).
+- **Pictures and sales**: a product can have several pictures (arrows let students flick through them) and an
+  optional sale price, shown as "Was ~~R300~~ Now R250, -17% · save R50". **Admin > Pictures** is where picture
+  addresses are pasted for the built-in catalogue (or any barcode). In Compare, tapping a store shows that store's
+  picture, price and details.
 - **Money courses** (`/courses`): three short lessons (budgeting on R1 750, saving, shopping smart), each with a
   10-question multiple-choice quiz (4 answers, 1 correct; 70% to pass). Admins manage the questions and answers and
   see every attempt under **Admin > Courses**. `flask seed-courses` loads them (also done on the first visit).
@@ -87,8 +91,8 @@ From the admin portal the admin can:
   brand, SKU, size, colour, photos (URLs and/or uploads), price and stock. Clothing can only be added to clothing stores,
   groceries only to supermarkets. Products added here appear in student search straight away, next to the LoyaltyHub
   prices, and can be added to shopping lists.
-- **Stores**: 36 known Durban branches (Checkers, Pick n Pay, Shoprite, Woolworths, SPAR, Mr Price, PEP, Ackermans,
-  Edgars, Truworths, Jet). The newer ones use approximate positions at the shopping centre; `flask seed-stores --geocode`
+- **Stores**: 51 known Durban branches (Checkers, Pick n Pay, Shoprite, Woolworths, SPAR, Boxer, Mr Price, PEP,
+  Ackermans, Edgars, Truworths, Jet, Markham, Relay Jeans, M&L), including the Durban CBD (Durban Central). The newer ones use approximate positions at the shopping centre; `flask seed-stores --geocode`
   refines them. "Add known Durban stores" on the Stores page loads any that are missing.
 
 Every finished trip in **Shopping History** has its own map: the route from the student's residence to each store on

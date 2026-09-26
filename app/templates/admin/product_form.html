@@ -68,23 +68,20 @@
         <div class="col-md-3" data-show-for="Clothing">{{ control(form.Colour, maxlength=40, placeholder="Black") }}</div>
         <datalist id="size-list">{% for s in ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '28', '30', '32', '34', '36', '6', '7', '8', '9', '10', 'One size'] %}<option value="{{ s }}">{% endfor %}</datalist>
 
-        <div class="col-md-4">{{ control(form.Price, type="text", inputmode="decimal", placeholder="24.99") }}</div>
-        <div class="col-md-4">{{ select(form.StockStatus) }}</div>
-        <div class="col-md-4">{{ control(form.StockQuantity, type="number", min=0, hint="Required for clothing. 0 marks it out of stock.") }}</div>
+        <div class="col-md-3">{{ control(form.Price, type="text", inputmode="decimal", placeholder="24.99") }}</div>
+        <div class="col-md-3">{{ control(form.SalePrice, type="text", inputmode="decimal", placeholder="e.g. 19.99", hint="Optional. Lower than the price: shows Was / Now and the % off.") }}</div>
+        <div class="col-md-3">{{ select(form.StockStatus) }}</div>
+        <div class="col-md-3">{{ control(form.StockQuantity, type="number", min=0, hint="Required for clothing. 0 marks it out of stock.") }}</div>
 
-        {# One image for grocery and toiletries #}
-        <div class="col-md-8" data-show-for="Grocery Toiletries">{{ control(form.ImageUrl, type="url", maxlength=1000, placeholder="https://…/product.jpg", hint="A LoyaltyHub image URL works, or any https:// picture.") }}</div>
-        <div class="col-md-4" data-show-for="Grocery Toiletries">{{ control(form.ImageFile, accept="image/jpeg,image/png,image/webp", hint="JPG, PNG or WEBP up to 2MB.") }}</div>
-
-        {# Several photos for clothing #}
-        <div class="col-md-8" data-show-for="Clothing">{{ control(form.PhotoUrls, rows=3, placeholder="One https:// address per line") }}</div>
-        <div class="col-md-4" data-show-for="Clothing">{{ control(form.Photos, multiple=True, accept="image/jpeg,image/png,image/webp", hint="Up to " ~ config.MAX_PRODUCT_PHOTOS ~ " photos, 2MB each.") }}</div>
+        {# Pictures for every category: several make arrows appear on the product so students can flick through #}
+        <div class="col-md-8">{{ control(form.PhotoUrls, rows=3, placeholder="One https:// address per line", hint="Paste one picture address per line. The first is the main picture; more than one shows slide arrows.") }}</div>
+        <div class="col-md-4">{{ control(form.Photos, multiple=True, accept="image/jpeg,image/png,image/webp", hint="Or upload: JPG, PNG or WEBP, up to " ~ config.MAX_PRODUCT_PHOTOS ~ " pictures, 2MB each.") }}</div>
       </div>
 
       {% if product and product.photos %}
         <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Current pictures">
           {% for url in product.photos %}<img class="admin-thumb lg" src="{{ url|safe_image_url }}" alt="Current picture {{ loop.index }}" width="72" height="72" loading="lazy">{% endfor %}
-          <span class="small text-muted-ink align-self-center">Leave the picture fields empty to keep these.</span>
+          <div class="form-check align-self-center">{{ form.RemovePictures(class_="form-check-input") }}<label class="form-check-label small" for="RemovePictures">Remove the current uploaded pictures</label></div>
         </div>
       {% endif %}
 

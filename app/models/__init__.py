@@ -6,7 +6,7 @@ before Flask-Migrate inspects it.
 
 from app.models.admin import AuditLog, CategoryMapping, IntegrationSetting
 from app.models.budget import Budget
-from app.models.catalogue import CatalogueProduct
+from app.models.catalogue import CatalogueProduct, ProductPicture
 from app.models.contact import ContactMessage
 from app.models.course import Answer, Course, CourseAttempt, Question
 from app.models.list_item import ListItem
@@ -27,6 +27,7 @@ __all__ = [
     "Preference",
     "Store",
     "CatalogueProduct",
+    "ProductPicture",
     "ContactMessage",
     "Course",
     "Question",

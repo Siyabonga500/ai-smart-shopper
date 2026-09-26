@@ -69,6 +69,19 @@ def in_list_quantities(items) -> dict[tuple[str, str], int]:
     }
 
 
+def sale_fields(offer: Product) -> dict:
+    """``original_price`` ("Was"), ``sale_percent`` and ``sale_saving`` when the offer is on sale, else Nones."""
+    from app.models.catalogue import sale_percent
+
+    if offer.original_price is None or money(offer.original_price) <= money(offer.price):
+        return {"original_price": None, "sale_percent": None, "sale_saving": None}
+    return {
+        "original_price": str(money(offer.original_price)),
+        "sale_percent": sale_percent(offer.original_price, offer.price),
+        "sale_saving": str(money(offer.original_price) - money(offer.price)),
+    }
+
+
 def offer_to_card(offer: Product, badges=(), quantities: dict | None = None, tag: str | None = None) -> dict:
     ident = offer.barcode or offer.name.casefold()
     return {
@@ -79,6 +92,8 @@ def offer_to_card(offer: Product, badges=(), quantities: dict | None = None, tag
         "retailer": offer.retailer,
         "price": str(money(offer.price)),
         "image_url": offer.image_url,
+        "images": list(offer.images) or ([offer.image_url] if offer.image_url else []),
+        **sale_fields(offer),
         "category": offer.category,
         "store_id": offer.store_id,
         "store_name": offer.store_name,

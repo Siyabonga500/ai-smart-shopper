@@ -300,6 +300,59 @@ DURBAN_STORES: tuple[StoreSeed, ...] = (
         link=WOOLWORTHS_FINDER,
         kind="both",
     ),
+    # ---- Durban CBD (Durban Central), addresses from the retailers' store listings; positions approximate ----
+    StoreSeed(
+        "superspar-west-street",
+        "SUPERSPAR West Street",
+        "SPAR",
+        "Durban Central",
+        "456 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8581,
+        31.025,
+        phone="031 301 0997",
+        link=SPAR_FINDER,
+    ),
+    StoreSeed(
+        "spar-st-georges",
+        "SPAR St George's",
+        "SPAR",
+        "Durban Central",
+        "Shop 10, Spoornet Arcade, 477 Anton Lembede (Smith) Street, Durban Central, 4001",
+        -29.8596,
+        31.024,
+        link=SPAR_FINDER,
+    ),
+    StoreSeed(
+        "superspar-mega-durban",
+        "SUPERSPAR Mega Durban",
+        "SPAR",
+        "Durban Central",
+        "2 Soldiers Way, Durban Central, 4001",
+        -29.8545,
+        31.023,
+        phone="031 493 0119",
+        link=SPAR_FINDER,
+    ),
+    StoreSeed(
+        "shoprite-smith-street",
+        "Shoprite Smith Street",
+        "Shoprite",
+        "Durban Central",
+        "394 Anton Lembede (Smith) Street, off West Street, Durban Central, 4001",
+        -29.8597,
+        31.0265,
+        link=SHOPRITE_FINDER,
+    ),
+    StoreSeed(
+        "shoprite-576-west-street",
+        "Shoprite 576 West Street",
+        "Shoprite",
+        "Durban Central",
+        "576 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8565,
+        31.0195,
+        link=SHOPRITE_FINDER,
+    ),
 )
 
 # Clothing retailers at the same shopping centres. Positions are approximate anchors at the centre; run
@@ -445,10 +498,117 @@ CLOTHING_STORES: tuple[StoreSeed, ...] = (
         30.8873,
         kind="clothing",
     ),
+    # ---- Durban CBD (Durban Central) clothing shops; positions approximate ----
+    StoreSeed(
+        "mrprice-broadwalk",
+        "Mr Price Broadwalk",
+        "Mr Price",
+        "Durban Central",
+        "Broadwalk Centre, 469 West Street (Cnr Broad Street), Durban Central, 4001",
+        -29.8583,
+        31.0245,
+        phone="031 301 2284",
+        kind="clothing",
+    ),
+    StoreSeed(
+        "mrprice-field-street",
+        "Mr Price Field Street",
+        "Mr Price",
+        "Durban Central",
+        "78 Field Street (Joe Slovo Street), Durban Central, 4001",
+        -29.8575,
+        31.029,
+        phone="031 304 5009",
+        kind="clothing",
+    ),
+    StoreSeed(
+        "jet-west-street",
+        "Jet West Street",
+        "Jet",
+        "Durban Central",
+        "396 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8577,
+        31.0262,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "markham-west-street",
+        "Markham West Street",
+        "Markham",
+        "Durban Central",
+        "Shop REGA & REGB, 374 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8576,
+        31.0268,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "relay-jeans-west-street",
+        "Relay Jeans West Street",
+        "Relay Jeans",
+        "Durban Central",
+        "West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8579,
+        31.0255,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "relay-jeans-workshop",
+        "Relay Jeans The Workshop",
+        "Relay Jeans",
+        "Durban Central",
+        "The Workshop, 99 Samora Machel Street, Durban Central, 4001",
+        -29.8565,
+        31.0276,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "ml-west-street",
+        "M&L West Street",
+        "M&L",
+        "Durban Central",
+        "372 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8576,
+        31.027,
+        kind="clothing",
+    ),
+    StoreSeed(
+        "ml-monty-naicker",
+        "M&L Monty Naicker Road",
+        "M&L",
+        "Durban Central",
+        "277 Monty Naicker Road (Pine Street), Durban Central, 4001",
+        -29.86,
+        31.025,
+        kind="clothing",
+    ),
+)
+
+# Supermarkets the built-in price catalogue does not cover (no prices until an admin adds products or a live source
+# has them), in the Durban CBD.
+OTHER_GROCERY_STORES: tuple[StoreSeed, ...] = (
+    StoreSeed(
+        "boxer-city-west-arcade",
+        "Boxer City West Arcade",
+        "Boxer",
+        "Durban Central",
+        "Shop 8 & 9, City West Arcade, Cnr Victoria (Bertha Mkhize) & Queen (Denis Hurley) Street, Durban Central, 4001",
+        -29.854,
+        31.017,
+        phone="031 301 5820",
+    ),
+    StoreSeed(
+        "boxer-west-street",
+        "Boxer West Street",
+        "Boxer",
+        "Durban Central",
+        "477 West Street (Dr Pixley KaSeme Street), Durban Central, 4001",
+        -29.8584,
+        31.0243,
+    ),
 )
 
 # Every branch the seeder knows about: supermarkets first, then the clothing shops.
-ALL_STORES: tuple[StoreSeed, ...] = DURBAN_STORES + CLOTHING_STORES
+ALL_STORES: tuple[StoreSeed, ...] = DURBAN_STORES + OTHER_GROCERY_STORES + CLOTHING_STORES
 
 # What the brief asked for, per brand.
 REQUESTED_BRANCHES: dict[str, tuple[str, ...]] = {

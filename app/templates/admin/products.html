@@ -60,7 +60,11 @@
             </td>
             <td class="d-none d-md-table-cell small"><div class="fw-600">{{ p.store.Name }}</div><div class="text-muted-ink">{{ p.store.Brand }}</div></td>
             <td class="d-none d-lg-table-cell small tabular">{{ p.Barcode or '—' }}{% if p.Sku %}<div class="text-muted-ink">SKU {{ p.Sku }}</div>{% endif %}</td>
-            <td class="text-end tabular">{{ price(p.Price) }}</td>
+            <td class="text-end tabular">
+              {% if p.on_sale %}
+                <div><s class="text-muted-ink small">{{ p.Price|zar }}</s> <span class="badge text-bg-danger">-{{ p.sale_percent }}%</span></div>{{ price(p.SalePrice) }}
+              {% else %}{{ price(p.Price) }}{% endif %}
+            </td>
             <td><span class="badge {{ {'in_stock': 'text-bg-success', 'low_stock': 'text-bg-warning', 'out_of_stock': 'text-bg-danger'}.get(p.StockStatus, 'text-bg-light') }}">{{ p.stock_label }}</span>{% if p.StockQuantity is not none %}<div class="small text-muted-ink">{{ p.StockQuantity }} left</div>{% endif %}</td>
             <td class="text-end text-nowrap">
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.product_edit', product_id=p.ProductId) }}">Edit</a>

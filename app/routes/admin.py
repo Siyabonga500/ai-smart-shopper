@@ -16,6 +16,8 @@
     GET   /admin/products                      ?q=&category=&store=&page=   products added by hand
     GET/POST /admin/products/new | /<id>/edit  POST /admin/products/<id>/delete
     GET   /admin/messages                      ?page=   Contact us messages   POST /<id>/read | /<id>/delete
+    GET   /admin/pictures                      ?q=&page=   paste picture URLs for the built-in products (by barcode)
+    POST  /admin/pictures                      barcode + URLs, one per line (an empty list removes them)
     GET   /admin/courses                       the short courses: questions, attempts, pass rate
     GET   /admin/courses/<id>                  one course: every question and answer (+ POST .../questions to add)
     GET   /admin/courses/<id>/attempts         who took the quiz, their scores
@@ -35,7 +37,7 @@ from flask_login import current_user, login_user
 
 from app.extensions import db, login_manager
 from app.forms.admin import AdminNewUserForm, AdminUserForm, ApiKeyForm, CategoryMappingForm, ProductForm, StoreForm
-from app.models import Answer, CatalogueProduct, ContactMessage, Course, Question, Store
+from app.models import Answer, CatalogueProduct, ContactMessage, Course, ProductPicture, Question, Store
 from app.models.admin import MAPPED_CATEGORIES
 from app.models.catalogue import PRODUCT_CATEGORIES
 from app.services import admin_stats, admin_stores, admin_users, audit, catalogue, category_map, integrations
@@ -576,27 +578,25 @@ def _apply_product(product: CatalogueProduct, form: ProductForm) -> None:
     product.Name = form.Name.data
     product.Brand = form.Brand.data
     product.Price = form.Price.data
+    product.SalePrice = form.SalePrice.data
     product.StockStatus = form.StockStatus.data
     product.StockQuantity = form.StockQuantity.data
+    # Every category can have several pictures: the image address, the photo addresses and any uploads, in order.
+    new = [u for u in [form.ImageUrl.data or None, *form.photo_urls] if u]
+    new += _save_photos(form.ImageFile.data) + _save_photos(form.Photos.data)
+    if product.ProductId and not form.RemovePictures.data:
+        new += [p for p in product.photos if not p.startswith("http")]  # uploads stay unless removed on purpose
+    photos = list(dict.fromkeys(new))  # no duplicates, order kept
+    if len(photos) > limit:
+        raise PhotoError(f"A product can have at most {limit} pictures.")
+    product.Photos = photos or None
+    product.ImageUrl = photos[0] if photos else None
+    product.Barcode = form.Barcode.data
     if clothing:
-        photos = form.photo_urls + _save_photos(form.Photos.data)
-        if not photos and product.Photos:
-            photos = list(product.Photos)  # editing without new photos keeps the old ones
-        if len(photos) > limit:
-            raise PhotoError(f"A product can have at most {limit} photos.")
-        product.Photos = photos or None
-        product.ImageUrl = photos[0] if photos else None
         product.Sku, product.Size, product.Colour = form.Sku.data, form.Size.data, form.Colour.data
-        product.Barcode = form.Barcode.data
         if form.StockQuantity.data == 0:
             product.StockStatus = "out_of_stock"
     else:
-        uploaded = _save_photos(form.ImageFile.data)
-        product.ImageUrl = (
-            uploaded[0] if uploaded else (form.ImageUrl.data or (product.ImageUrl if product.ProductId else None))
-        )
-        product.Photos = None
-        product.Barcode = form.Barcode.data
         product.Sku = product.Size = product.Colour = None
 
 
@@ -653,8 +653,8 @@ def product_edit(product_id):
                 "Barcode": product.Barcode,
                 "Sku": product.Sku,
                 "Price": product.Price,
-                "ImageUrl": None if product.is_clothing else product.ImageUrl,
-                "PhotoUrls": "\n".join(p for p in (product.Photos or []) if p.startswith("http")),
+                "SalePrice": product.SalePrice,
+                "PhotoUrls": "\n".join(p for p in product.photos if p.startswith("http")),
                 "Size": product.Size,
                 "Colour": product.Colour,
                 "StockStatus": product.StockStatus,
@@ -724,6 +724,59 @@ def message_delete(message_id):
     db.session.commit()
     _done("Message deleted.")
     return redirect(url_for("admin.messages"))
+
+
+# -------------------------------------------------------------------------------------------- pictures
+@bp.route("/pictures", methods=["GET", "POST"])
+def pictures():
+    from app.data.mock_products import CATALOGUE
+    from app.services.retail_api import clean_barcode, clean_image_url
+
+    if request.method == "POST":
+        barcode = clean_barcode(request.form.get("barcode"))
+        lines = [line.strip() for line in (request.form.get("urls") or "").splitlines() if line.strip()]
+        urls = [clean_image_url(line) for line in lines]
+        back = url_for("admin.pictures", q=request.form.get("q") or None, page=request.form.get("page") or None)
+        if not barcode:
+            _fail("Enter the product's barcode (8 to 14 digits).")
+            return redirect(back)
+        if any(u is None or not u.startswith("https://") for u in urls):
+            _fail("Every line must be a picture address starting with https://")
+            return redirect(back)
+        if len(urls) > current_app.config["MAX_PRODUCT_PHOTOS"]:
+            _fail(f"At most {current_app.config['MAX_PRODUCT_PHOTOS']} pictures per product.")
+            return redirect(back)
+        saved = catalogue.set_pictures(barcode, urls)
+        audit.record(me(), "picture.set", f"barcode:{barcode}", {"pictures": len(saved)})
+        db.session.commit()
+        _done(
+            f"Saved {len(saved)} picture{'' if len(saved) == 1 else 's'} for {barcode}."
+            if saved
+            else f"Removed the pictures of {barcode}."
+        )
+        return redirect(back + f"#p-{barcode}")
+
+    query = (request.args.get("q") or "").strip()[:100]
+    words = query.casefold().split()
+    items = [i for i in CATALOGUE if all(w in f"{i.name} {i.brand} {i.barcode} {i.category}".casefold() for w in words)]
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    per_page = 20
+    pages = max(1, -(-len(items) // per_page))
+    page = min(page, pages)
+    shown = items[(page - 1) * per_page : page * per_page]
+    return render_template(
+        "admin/pictures.html",
+        items=shown,
+        pictures=catalogue.pictures_for({i.barcode for i in shown}),
+        q=query,
+        page=page,
+        pages=pages,
+        total=len(items),
+        with_pictures=db.session.query(ProductPicture.Barcode).distinct().count(),
+    )
 
 
 # --------------------------------------------------------------------------------------------- courses

@@ -373,7 +373,11 @@ def test_cheapest_badge_ignores_the_filters(signed_in, user):
 
 def test_store_filter(signed_in, app):
     upsert_stores(DURBAN_STORES)
-    store = db.session.query(Store).filter(Store.Brand == "SPAR").first()
+    # the built-in catalogue prices the SPAR branch nearest the student (central Durban here)
+    store = min(
+        db.session.query(Store).filter(Store.Brand == "SPAR"),
+        key=lambda s: (s.Latitude + 29.8587) ** 2 + (s.Longitude - 31.0218) ** 2,
+    )
     data = signed_in.get(f"/api/search?q=milk&stores={store.StoreId}&radius=15").get_json()
     assert data["total"] > 0 and {c["store_id"] for c in data["results"]} == {store.Slug}
 

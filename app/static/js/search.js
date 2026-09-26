@@ -148,19 +148,58 @@
     return h("span", { "class": "badge-tag " + kind, text: text });
   }
 
-  function thumbEl(card, cls) {
-    var thumb = h("div", { "class": cls || "product-thumb" });
-    var src = App.safeUrl(card.image_url);
+  function pictureUrl(url) {
+    var src = App.safeUrl(url);
     if (src && /^https:\/\//i.test(src)) src = "/api/product-image?url=" + encodeURIComponent(src);
+    return src;
+  }
+
+  /** The product picture. With more than one picture: left/right arrows and "2 / 3", one picture at a time. */
+  function thumbEl(card, cls) {
+    var thumb = h("div", { "class": (cls || "product-thumb") + " gallery" });
+    var pictures = (card.images && card.images.length ? card.images : [card.image_url]).map(pictureUrl).filter(Boolean);
     var fallback = icon("image");
-    if (src) {
-      var img = h("img", { src: src, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
-      img.addEventListener("error", function () { img.remove(); thumb.appendChild(fallback); });
-      thumb.appendChild(img);
-    } else {
-      thumb.appendChild(fallback);
+    if (!pictures.length) { thumb.appendChild(fallback); return thumb; }
+    var index = 0;
+    var img = h("img", { src: pictures[0], alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
+    img.addEventListener("error", function () {               // a picture that will not load: show the icon instead
+      img.hidden = true;
+      fallback.hidden = false;
+    });
+    img.addEventListener("load", function () { img.hidden = false; fallback.hidden = true; });
+    fallback.hidden = true;
+    thumb.appendChild(img);
+    thumb.appendChild(fallback);
+    if (pictures.length < 2) return thumb;
+
+    var count = h("span", { "class": "gallery-count", "aria-live": "polite", text: "1 / " + pictures.length });
+    function show(step, event) {
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      index = (index + step + pictures.length) % pictures.length;
+      img.hidden = false;
+      fallback.hidden = true;
+      img.src = pictures[index];
+      img.alt = "Picture " + (index + 1) + " of " + pictures.length;
+      count.textContent = (index + 1) + " / " + pictures.length;
     }
+    thumb.appendChild(h("button", { type: "button", "class": "gallery-btn prev", "aria-label": "Previous picture of " + card.name,
+                                    onclick: function (e) { show(-1, e); } }, [icon("chevron-left")]));
+    thumb.appendChild(h("button", { type: "button", "class": "gallery-btn next", "aria-label": "Next picture of " + card.name,
+                                    onclick: function (e) { show(1, e); } }, [icon("chevron-right")]));
+    thumb.appendChild(count);
     return thumb;
+  }
+
+  /** The price; on sale: "Was R300" struck through, "Now R250" and "-17% · save R50". */
+  function priceBlock(card, cls) {
+    if (!card.original_price) return App.priceEl(card.price, cls);
+    var was = App.priceEl(card.original_price, "price-was");
+    return h("div", { "class": "sale-price" }, [
+      h("div", { "class": "small text-muted-ink" }, ["Was ", h("s", {}, [was])]),
+      h("div", { "class": "d-flex align-items-baseline gap-1 flex-wrap" }, [
+        h("span", { "class": "small fw-600", text: "Now" }), App.priceEl(card.price, cls)]),
+      h("span", { "class": "sale-badge", text: "-" + card.sale_percent + "% · save R" + card.sale_saving })
+    ]);
   }
 
   function inListPill(qty) {
@@ -206,7 +245,7 @@
     var why = (card.reasons && card.reasons.length) ? h("div", { "class": "product-why", text: card.reasons[0], title: card.reasons.join(". ") }) : null;
     var pref = (card.preferred && card.preferred.length) ? h("div", { "class": "product-pref", title: card.preferred.join(" · ") }, [
       icon("heart-fill"), " ", "Matches your preferences: " + card.preferred.join(" · ")]) : null;
-    var priceRow = h("div", { "class": "product-price-row" }, [App.priceEl(card.price, "product-price"), inListPill(card.in_list_qty || 0)]);
+    var priceRow = h("div", { "class": "product-price-row" }, [priceBlock(card, "product-price"), inListPill(card.in_list_qty || 0)]);
     // One button: Compare opens every store's price and distance from the student, and adding happens there.
     var actions = h("div", { "class": "product-actions" }, [
       h("button", { type: "button", "class": "btn btn-brand btn-sm w-100", "aria-label": "Compare prices and distances for " + card.name,
@@ -372,23 +411,37 @@
     ])];
   }
 
-  function renderProduct(data) {
-    var p = data.product;
-    var body = $("product-modal-body");
+  /** The picture, price and facts of one store's offer (changes when another store is clicked in the list). */
+  function detailsEl(p) {
     var facts = [].concat(
       fact("Store", p.store_name), fact("Address", p.store_address),
       fact("Distance", p.distance_km != null ? km(p.distance_km) + " from you" : ""),
       fact("Retailer", p.retailer), fact("Barcode", p.barcode), fact("SKU", p.sku !== p.barcode ? p.sku : ""),
       fact("Category", p.category), fact("Brand", p.brand), fact("Size", p.size), fact("Colour", p.colour),
       fact("Stock", stockText(p)), imageFact(p.image_url));
-
-    var main = h("div", { "class": "row g-3", "data-key": p.key }, [
+    return h("div", { "class": "row g-3 mt-4", "data-key": p.key, id: "compare-details" }, [
       h("div", { "class": "col-md-5" }, [thumbEl(p, "product-hero")]),
       h("div", { "class": "col-md-7" }, [
-        h("div", { "class": "d-flex align-items-baseline justify-content-between gap-2" }, [App.priceEl(p.price, "product-price fs-2"), inListPill(p.in_list_qty || 0)]),
+        h("div", { "class": "small text-muted-ink", text: "Showing " + (p.store_name || p.retailer || "this store") }),
+        h("div", { "class": "d-flex align-items-baseline justify-content-between gap-2" }, [priceBlock(p, "product-price fs-2"), inListPill(p.in_list_qty || 0)]),
         h("dl", { "class": "facts" }, facts)
       ])
     ]);
+  }
+
+  function renderProduct(data) {
+    var p = data.product;
+    var body = $("product-modal-body");
+    var main = detailsEl(p);
+    function select(offer, row) {
+      var fresh = detailsEl(offer);
+      main.replaceWith(fresh);
+      main = fresh;
+      Array.prototype.forEach.call(body.querySelectorAll(".offer-row"), function (r) {
+        r.classList.toggle("selected", r === row);
+        r.setAttribute("aria-pressed", r === row ? "true" : "false");
+      });
+    }
 
     var comparison = data.comparison || {};
     var others = h("div", { "class": "mt-4" });
@@ -410,7 +463,9 @@
         detail.push("R" + offer.more_than_cheapest + " more than the cheapest");
         if (offer.closer_than_cheapest_km != null && offer.closer_than_cheapest_km > 0) detail.push(km(offer.closer_than_cheapest_km) + " closer");
       }
-      list.appendChild(h("li", { "class": "offer-row" + (cheapest ? " cheapest" : ""), "data-key": offer.key }, [
+      var row = h("li", { "class": "offer-row" + (cheapest ? " cheapest" : "") + (offer.key === p.key ? " selected" : ""), "data-key": offer.key,
+                          role: "button", tabindex: "0", "aria-pressed": offer.key === p.key ? "true" : "false",
+                          "aria-label": "Show " + (offer.store_name || offer.retailer) + "'s picture and details" }, [
         h("div", { "class": "min-w-0" }, [
           h("div", { "class": "fw-600 text-truncate", text: offer.store_name || offer.retailer }),
           offer.store_address ? h("div", { "class": "small text-muted-ink text-truncate", text: offer.store_address }) : null,
@@ -420,15 +475,23 @@
         ]),
         h("div", { "class": "d-flex flex-column align-items-end gap-1 flex-shrink-0" }, [
           h("div", { "class": "d-flex gap-1" }, (offer.badges || []).map(badgeEl)),
-          App.priceEl(offer.price, "fw-bold"),
+          priceBlock(offer, "fw-bold"),
           inListPill(offer.in_list_qty || 0),
           addButton(offer)
         ])
-      ]));
+      ]);
+      row.addEventListener("click", function (event) {
+        if (event.target.closest("button")) return;           // Add (and the picture arrows) do their own thing
+        select(offer, row);
+      });
+      row.addEventListener("keydown", function (event) {
+        if ((event.key === "Enter" || event.key === " ") && event.target === row) { event.preventDefault(); select(offer, row); }
+      });
+      list.appendChild(row);
     });
     others.appendChild(list);
     others.classList.remove("mt-4");
-    main.classList.add("mt-4");
+    others.appendChild(h("p", { "class": "small text-muted-ink mt-2 mb-0", text: "Tap a store to see its picture and details." }));
     body.replaceChildren(others, main);   // the comparison first: that is what the student opened this for
   }
 

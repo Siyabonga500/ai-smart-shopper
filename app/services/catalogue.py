@@ -80,6 +80,7 @@ def snapshot(product: CatalogueProduct) -> dict:
         "sku": product.Sku,
         "barcode": product.Barcode,
         "price": str(product.Price),
+        "sale_price": str(product.SalePrice) if product.SalePrice is not None else None,
         "image": product.ImageUrl,
         "photos": len(product.Photos or []),
         "size": product.Size,
@@ -102,6 +103,8 @@ def to_product(row: CatalogueProduct, lat: float | None = None, lng: float | Non
         name=f"{row.Name} ({details})" if details else row.Name,
         barcode=row.code,
         price=row.price_decimal,
+        original_price=row.price_before_sale,
+        images=tuple(row.photos),
         image_url=row.ImageUrl or CATEGORY_PLACEHOLDERS.get(category, PLACEHOLDER_IMAGE),
         store_name=store.Name,
         store_address=store.Address,
@@ -161,3 +164,31 @@ def by_code(code: str | None, lat=None, lng=None, radius_km=15) -> list[Product]
         select(CatalogueProduct).where(or_(CatalogueProduct.Barcode == code, CatalogueProduct.Sku == code))
     ).all()
     return _near(rows, lat, lng, radius_km)
+
+
+# ---------------------------------------------------------------------------------------------- pasted pictures
+def pictures_for(barcodes) -> dict[str, list[str]]:
+    """``{barcode: [url, ...]}`` for the barcodes that have pictures pasted in Admin > Pictures (in order)."""
+    from app.models import ProductPicture
+
+    codes = [b for b in barcodes if b]
+    if not codes:
+        return {}
+    table: dict[str, list[str]] = {}
+    rows = db.session.scalars(
+        select(ProductPicture).where(ProductPicture.Barcode.in_(codes)).order_by(ProductPicture.Position)
+    )
+    for row in rows:
+        table.setdefault(row.Barcode, []).append(row.Url)
+    return table
+
+
+def set_pictures(barcode: str, urls: list[str]) -> list[str]:
+    """Replace the pasted pictures of ``barcode`` (an empty list removes them). The caller commits."""
+    from app.models import ProductPicture
+
+    db.session.query(ProductPicture).filter(ProductPicture.Barcode == barcode).delete()
+    clean = list(dict.fromkeys(u for u in urls if u))
+    for position, url in enumerate(clean, 1):
+        db.session.add(ProductPicture(Barcode=barcode, Url=url, Position=position))
+    return clean

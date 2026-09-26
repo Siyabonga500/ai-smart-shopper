@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}Pictures - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-1">Product pictures</h1>
+  <p class="small text-muted-ink mb-3">The built-in catalogue has no photos of its own. Paste picture addresses (one per line, starting with https://) and students see them on the product, with slide arrows when there is more than one. {{ with_pictures }} product{{ '' if with_pictures == 1 else 's' }} have pictures.</p>
+
+  <form class="card app-card mb-3" method="get" role="search" aria-label="Find products"><div class="card-body row g-2 align-items-end">
+    <div class="col-md-8"><label class="form-label small mb-1" for="q">Name, brand, barcode or category</label>
+      <input class="form-control" id="q" name="q" value="{{ q }}" maxlength="100" placeholder="e.g. Clover milk" autocomplete="off"></div>
+    <div class="col-md-4 d-flex gap-2"><button class="btn btn-brand flex-grow-1" type="submit">Search</button><a class="btn btn-outline-secondary" href="{{ url_for('admin.pictures') }}">Clear</a></div>
+  </div></form>
+
+  <details class="card app-card mb-3"><summary class="card-body fw-600">A product that is not in the list (for example from LoyaltyHub)? Add pictures by barcode</summary>
+    <form method="post" class="card-body pt-0 row g-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="col-md-3"><label class="form-label small" for="any-barcode">Barcode</label><input class="form-control" id="any-barcode" name="barcode" inputmode="numeric" maxlength="14"></div>
+      <div class="col-md-7"><label class="form-label small" for="any-urls">Picture addresses (one per line)</label><textarea class="form-control" id="any-urls" name="urls" rows="2"></textarea></div>
+      <div class="col-md-2 d-flex align-items-end"><button class="btn btn-brand w-100" type="submit">Save</button></div>
+    </form>
+  </details>
+
+  <p class="small text-muted-ink">{{ total }} product{{ '' if total == 1 else 's' }}{% if q %} match “{{ q }}”{% endif %} · page {{ page }} of {{ pages }}</p>
+  <div class="d-grid gap-2">
+    {% for item in items %}
+      {% set urls = pictures.get(item.barcode, []) %}
+      <form class="card app-card" method="post" id="p-{{ item.barcode }}"><div class="card-body row g-2 align-items-center">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="barcode" value="{{ item.barcode }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="page" value="{{ page }}">
+        <div class="col-md-4">
+          <div class="d-flex gap-2 align-items-center">
+            {% if urls %}<img class="admin-thumb lg" src="{{ urls[0]|safe_image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<span class="admin-thumb lg d-inline-flex align-items-center justify-content-center"><i class="bi bi-image text-muted-ink"></i></span>{% endif %}
+            <div class="min-w-0"><div class="fw-600 text-break">{{ item.name }}</div>
+              <div class="small text-muted-ink">{{ item.brand }} · {{ item.category }} · {{ item.barcode }}</div>
+              <div class="small">{{ urls|length }} picture{{ '' if urls|length == 1 else 's' }}</div></div>
+          </div>
+        </div>
+        <div class="col-md-6"><label class="visually-hidden" for="u-{{ item.barcode }}">Picture addresses for {{ item.name }}</label>
+          <textarea class="form-control form-control-sm" id="u-{{ item.barcode }}" name="urls" rows="2" placeholder="https://…/front.jpg (one per line)">{{ urls|join('\n') }}</textarea></div>
+        <div class="col-md-2"><button class="btn btn-sm btn-brand w-100" type="submit">Save pictures</button></div>
+      </div></form>
+    {% endfor %}
+  </div>
+  {% if pages > 1 %}
+    <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Pages">
+      {% if page > 1 %}<a class="btn btn-outline-brand btn-sm" href="{{ url_for('admin.pictures', q=q or None, page=page - 1) }}">Previous</a>{% else %}<span></span>{% endif %}
+      <span class="small text-muted-ink">Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-outline-brand btn-sm" href="{{ url_for('admin.pictures', q=q or None, page=page + 1) }}">Next</a>{% else %}<span></span>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}
