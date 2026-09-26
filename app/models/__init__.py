@@ -10,6 +10,7 @@ from app.models.catalogue import CatalogueProduct, ProductPicture
 from app.models.contact import ContactMessage
 from app.models.course import Answer, Course, CourseAttempt, Question
 from app.models.list_item import ListItem
+from app.models.mock_override import MockProductOverride, MockRetailerOverride
 from app.models.notification import Notification
 from app.models.preference import Preference
 from app.models.shopping_list import ShoppingList
@@ -24,6 +25,8 @@ __all__ = [
     "SubBudget",
     "ShoppingList",
     "ListItem",
+    "MockProductOverride",
+    "MockRetailerOverride",
     "Preference",
     "Store",
     "CatalogueProduct",

@@ -18,6 +18,9 @@ Rules the app is built around:
 - Search: "All" with no search words shows every product; filters (price, distance 0-60 km, stores) are optional.
   Saved preferences (store, brand, category, dietary) mark matching products "Matches your preferences" and, when
   the student has any, search shows those first ("My preferences first", changeable in Sort).
+- **Built-in products**: Admin > Built-in lists the built-in (mock) catalogue. An admin can edit a product's name,
+  brand, category and reference price, and per chain whether it stocks it, its price and stock, or delete it
+  (Restore brings it back; "Undo my changes" returns to the built-in values). Changes show to students at once.
 - **Pictures and sales**: a product can have several pictures (arrows let students flick through them) and an
   optional sale price, shown as "Was ~~R300~~ Now R250, -17% · save R50". **Admin > Pictures** is where picture
   addresses are pasted for the built-in catalogue (or any barcode). In Compare, tapping a store shows that store's

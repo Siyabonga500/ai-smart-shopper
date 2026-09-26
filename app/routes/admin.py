@@ -16,6 +16,9 @@
     GET   /admin/products                      ?q=&category=&store=&page=   products added by hand
     GET/POST /admin/products/new | /<id>/edit  POST /admin/products/<id>/delete
     GET   /admin/messages                      ?page=   Contact us messages   POST /<id>/read | /<id>/delete
+    GET   /admin/catalogue                     ?q=&category=&status=&page=   the built-in (mock) products
+    GET/POST /admin/catalogue/<barcode>        edit one: name, brand, category, price, each chain's price / stock
+    POST  /admin/catalogue/<barcode>/delete | /restore | /reset
     GET   /admin/pictures                      ?q=&page=   paste picture URLs for the built-in products (by barcode)
     POST  /admin/pictures                      barcode + URLs, one per line (an empty list removes them)
     GET   /admin/courses                       the short courses: questions, attempts, pass rate
@@ -724,6 +727,132 @@ def message_delete(message_id):
     db.session.commit()
     _done("Message deleted.")
     return redirect(url_for("admin.messages"))
+
+
+# ------------------------------------------------------------------------------------ built-in products
+def _builtin_changed():
+    from app.services.retail_api import invalidate_retail_cache
+
+    invalidate_retail_cache()  # students see the change at once (cached answers are 15 minutes old at most)
+
+
+@bp.get("/catalogue")
+def builtin_products():
+    from app.services import builtin_catalogue as builtin
+
+    try:
+        page = int(request.args.get("page") or 1)
+    except ValueError:
+        page = 1
+    category = _choice(request.args.get("category"), builtin.CATEGORIES)
+    status = _choice(request.args.get("status"), ("active", "edited", "deleted"))
+    query = (request.args.get("q") or "").strip()[:100]
+    rows, total, page, pages = builtin.search(query, category, status, page)
+    provider_name = integrations.SOURCE_INFO.get(integrations.active_source(), integrations.SOURCE_INFO["mock"]).label
+    return render_template(
+        "admin/builtin_products.html",
+        rows=rows,
+        total=total,
+        page=page,
+        pages=pages,
+        q=query,
+        category=category or "",
+        status=status or "",
+        categories=builtin.CATEGORIES,
+        counts=builtin.counts(),
+        pictures=catalogue.pictures_for({item.barcode for item, _, _ in rows}),
+        mock_active=integrations.active_source() == "mock",
+        provider_name=provider_name,
+    )
+
+
+@bp.route("/catalogue/<barcode>", methods=["GET", "POST"])
+def builtin_edit(barcode):
+    from app.services import builtin_catalogue as builtin
+    from app.services.retail_api import clean_image_url
+
+    product = builtin.get(barcode) or abort(404)
+    status = 200
+    if request.method == "POST":
+        try:
+            lines = [line.strip() for line in (request.form.get("pictures") or "").splitlines() if line.strip()]
+            urls = [clean_image_url(line) for line in lines]
+            if any(u is None for u in urls):
+                raise builtin.BuiltinError("Every picture line must be an address starting with https://")
+            if len(urls) > current_app.config["MAX_PRODUCT_PHOTOS"]:
+                raise builtin.BuiltinError(f"At most {current_app.config['MAX_PRODUCT_PHOTOS']} pictures per product.")
+            changes = builtin.save(barcode, request.form, me().Email)
+            catalogue.set_pictures(barcode, urls)
+        except builtin.BuiltinError as exc:
+            db.session.rollback()
+            _fail(str(exc))
+            status = 400
+        else:
+            audit.record(me(), "builtin.update", f"barcode:{barcode}", {**changes, "pictures": len(urls)})
+            db.session.commit()
+            _builtin_changed()
+            _done(f"Saved {changes['name']}. Students see the change straight away.")
+            return redirect(url_for("admin.builtin_edit", barcode=barcode))
+    return (
+        render_template(
+            "admin/builtin_edit.html",
+            product=product,
+            categories=builtin.CATEGORIES,
+            pictures=catalogue.pictures_for({barcode}).get(barcode, []),
+            form=request.form if request.method == "POST" else None,
+        ),
+        status,
+    )
+
+
+def _builtin_action(barcode, action, work, message):
+    from app.services import builtin_catalogue as builtin
+
+    if builtin.get(barcode) is None:
+        abort(404)
+    work()
+    audit.record(me(), action, f"barcode:{barcode}")
+    db.session.commit()
+    _builtin_changed()
+    _done(message)
+    return redirect(
+        request.form.get("next")
+        if (request.form.get("next") or "").startswith("/admin/")
+        else url_for("admin.builtin_products")
+    )
+
+
+@bp.post("/catalogue/<barcode>/delete")
+def builtin_delete(barcode):
+    from app.services import builtin_catalogue as builtin
+
+    return _builtin_action(
+        barcode,
+        "builtin.delete",
+        lambda: builtin.set_hidden(barcode, True, me().Email),
+        "Deleted. Students no longer see this product (Restore brings it back).",
+    )
+
+
+@bp.post("/catalogue/<barcode>/restore")
+def builtin_restore(barcode):
+    from app.services import builtin_catalogue as builtin
+
+    return _builtin_action(
+        barcode, "builtin.restore", lambda: builtin.set_hidden(barcode, False, me().Email), "Restored."
+    )
+
+
+@bp.post("/catalogue/<barcode>/reset")
+def builtin_reset(barcode):
+    from app.services import builtin_catalogue as builtin
+
+    return _builtin_action(
+        barcode,
+        "builtin.reset",
+        lambda: builtin.reset(barcode),
+        "Your changes were undone: the built-in values are back.",
+    )
 
 
 # -------------------------------------------------------------------------------------------- pictures

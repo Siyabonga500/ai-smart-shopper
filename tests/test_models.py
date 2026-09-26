@@ -74,6 +74,8 @@ def test_the_six_pdf_tables_exist_plus_the_tables_added_by_later_steps(app):
         "course_answers",
         "course_attempts",  # money courses and their quizzes
         "product_pictures",  # Admin > Pictures
+        "mock_product_overrides",
+        "mock_retailer_overrides",  # Admin > Built-in products
     }
 
 

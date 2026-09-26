@@ -258,6 +258,10 @@ _HISTORY_POINTS = 12
 _BY_BARCODE = {item.barcode: item for item in CATALOGUE}
 
 
+def money_value(value) -> Decimal:
+    return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
 def _unit(*parts: str) -> float:
     """Deterministic pseudo-random number in [0, 1) derived from the parts."""
     digest = hashlib.sha256("|".join(parts).encode("utf-8")).digest()
@@ -270,8 +274,61 @@ def _to_ninety_nine(amount: Decimal) -> Decimal:
     return max(whole - Decimal("0.01"), Decimal("0.99"))
 
 
+@dataclass
+class CatalogueEdits:
+    """Admin changes to the built-in catalogue (Admin > Built-in products), read from the database per call."""
+
+    items: dict  # barcode -> MockProductOverride
+    retail: dict  # (barcode, retailer) -> MockRetailerOverride
+
+    @classmethod
+    def load(cls) -> "CatalogueEdits":
+        if not has_app_context():
+            return cls({}, {})
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.extensions import db
+        from app.models import MockProductOverride, MockRetailerOverride
+
+        try:
+            items = {row.Barcode: row for row in db.session.query(MockProductOverride)}
+            retail = {(row.Barcode, row.Retailer): row for row in db.session.query(MockRetailerOverride)}
+        except SQLAlchemyError:  # tables not created yet (before `flask db upgrade`)
+            db.session.rollback()
+            return cls({}, {})
+        return cls(items, retail)
+
+    def hidden(self, barcode: str) -> bool:
+        row = self.items.get(barcode)
+        return bool(row and row.Hidden)
+
+    def item(self, item: CatalogueItem) -> CatalogueItem:
+        """The product as the admin edited it (name, brand, category, reference price)."""
+        row = self.items.get(item.barcode)
+        if row is None:
+            return item
+        return replace(
+            item,
+            name=row.Name or item.name,
+            brand=row.Brand or item.brand,
+            category=row.Category or item.category,
+            price=str(row.Price) if row.Price is not None else item.price,
+        )
+
+
+def edited_catalogue(include_hidden: bool = True) -> list[tuple[CatalogueItem, bool]]:
+    """``[(product as edited, hidden?), ...]`` for the whole built-in catalogue."""
+    edits = CatalogueEdits.load()
+    return [
+        (edits.item(item), edits.hidden(item.barcode))
+        for item in CATALOGUE
+        if include_hidden or not edits.hidden(item.barcode)
+    ]
+
+
 class MockProvider(RetailProvider):
-    """Offline provider over :data:`app.data.mock_products.CATALOGUE`. Same input, same output, always."""
+    """Offline provider over :data:`app.data.mock_products.CATALOGUE`. Same input, same output, always
+    (apart from the admin's edits in Admin > Built-in products)."""
 
     name = "mock"
 
@@ -305,23 +362,39 @@ class MockProvider(RetailProvider):
                 best[seed.brand] = (seed, distance)
         return best
 
-    def _offers(self, item: CatalogueItem, branches: dict[str, tuple]) -> list[Product]:
+    def chain_offer(self, item: CatalogueItem, retailer: str, edits: CatalogueEdits) -> tuple[bool, Decimal, bool]:
+        """``(stocked?, price, in stock?)`` of an (edited) product at one chain, with the admin's per-chain edits."""
+        row = edits.retail.get((item.barcode, retailer))
+        listed = row.Listed if row is not None and row.Listed is not None else self.retailer_lists(item, retailer)
+        price = (
+            money_value(row.Price) if row is not None and row.Price is not None else self.retailer_price(item, retailer)
+        )
+        in_stock = (
+            row.InStock if row is not None and row.InStock is not None else self.retailer_in_stock(item, retailer)
+        )
+        return listed, price, in_stock
+
+    def _offers(
+        self, item: CatalogueItem, branches: dict[str, tuple], edits: CatalogueEdits | None = None
+    ) -> list[Product]:
+        edits = edits or CatalogueEdits({}, {})
         offers = []
         for retailer, (seed, distance) in branches.items():
-            if not self.retailer_lists(item, retailer):
+            listed, price, in_stock = self.chain_offer(item, retailer, edits)
+            if not listed:
                 continue
             offers.append(
                 Product(
                     name=item.name,
                     barcode=item.barcode,
-                    price=self.retailer_price(item, retailer),
+                    price=price,
                     image_url=CATEGORY_PLACEHOLDERS.get(item.category, PLACEHOLDER_IMAGE),
                     store_name=seed.name,
                     store_address=seed.address,
                     store_lat=seed.lat,
                     store_lng=seed.lng,
                     category=item.category,
-                    in_stock=self.retailer_in_stock(item, retailer),
+                    in_stock=in_stock,
                     brand=item.brand,
                     retailer=retailer,
                     store_id=seed.slug,
@@ -351,8 +424,12 @@ class MockProvider(RetailProvider):
         if not branches:
             return []
 
+        edits = CatalogueEdits.load()
         matches = []
-        for item in CATALOGUE:
+        for original in CATALOGUE:
+            if edits.hidden(original.barcode):
+                continue  # deleted by an admin
+            item = edits.item(original)
             if wanted and item.category.casefold() != wanted:
                 continue
             haystack = f"{item.name} {item.brand} {item.category}".casefold()
@@ -367,17 +444,18 @@ class MockProvider(RetailProvider):
 
         results: list[Product] = []
         for _, item in sorted(matches, key=lambda pair: pair[0]):
-            results.extend(self._offers(item, branches))
+            results.extend(self._offers(item, branches, edits))
             if len(results) >= limit:
                 break
         return results[:limit]
 
     def get_offers_by_barcode(self, barcode, lat=None, lng=None, radius_km=15):
         item = _BY_BARCODE.get((barcode or "").strip())
-        if item is None:
+        edits = CatalogueEdits.load()
+        if item is None or edits.hidden(item.barcode):
             return []
         lat, lng = self._center(lat, lng)
-        return self._offers(item, self._nearest_branches(lat, lng, radius_km))
+        return self._offers(edits.item(item), self._nearest_branches(lat, lng, radius_km), edits)
 
     def get_stores_near(self, lat, lng, radius_km=15):
         found = []
@@ -402,10 +480,12 @@ class MockProvider(RetailProvider):
     def get_price_history(self, barcode, store_id):
         item = _BY_BARCODE.get((barcode or "").strip())
         seed = next((s for s in DURBAN_STORES if s.slug == store_id), None)
-        if item is None or seed is None:
+        edits = CatalogueEdits.load()
+        if item is None or seed is None or edits.hidden(item.barcode):
             return []
+        item = edits.item(item)
         rng = random.Random(int(hashlib.sha256(f"{barcode}|{store_id}".encode()).hexdigest()[:12], 16))
-        price = current = self.retailer_price(item, seed.brand)
+        price = current = self.chain_offer(item, seed.brand, edits)[1]
         reverse = [current]  # newest first, then walk backwards in time
         for _ in range(_HISTORY_POINTS - 1):
             step = Decimal(str(round(rng.uniform(-0.06, 0.06), 4)))

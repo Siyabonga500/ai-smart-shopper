@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% block title %}Edit {{ product.item.name }} - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  {% set item = product.item %}
+  {% set f = form or {} %}
+  <nav aria-label="breadcrumb"><ol class="breadcrumb small"><li class="breadcrumb-item"><a href="{{ url_for('admin.builtin_products') }}">Built-in products</a></li><li class="breadcrumb-item active" aria-current="page">Edit</li></ol></nav>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ item.name }}</h1>
+      <p class="small text-muted-ink mb-0">Barcode {{ item.barcode }} · built in as “{{ product.original.name }}” at {{ product.original.price|zar }}
+        {% if product.hidden %} · <span class="badge text-bg-secondary">Deleted</span>{% elif product.edited %} · <span class="badge text-bg-info">Edited</span>{% endif %}</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if product.hidden %}
+        <form method="post" action="{{ url_for('admin.builtin_restore', barcode=item.barcode) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('admin.builtin_edit', barcode=item.barcode) }}"><button class="btn btn-outline-brand" type="submit">Restore</button></form>
+      {% else %}
+        <form method="post" action="{{ url_for('admin.builtin_delete', barcode=item.barcode) }}" data-confirm="Delete {{ item.name }}? Students will no longer see it."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash3 me-1"></i>Delete</button></form>
+      {% endif %}
+      {% if product.edited %}
+        <form method="post" action="{{ url_for('admin.builtin_reset', barcode=item.barcode) }}" data-confirm="Undo every change to this product?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('admin.builtin_edit', barcode=item.barcode) }}"><button class="btn btn-outline-secondary" type="submit">Undo my changes</button></form>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="post" class="card app-card admin-form" novalidate><div class="card-body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row">
+      <div class="col-md-6 mb-3"><label class="form-label" for="name">Product name</label>
+        <input class="form-control" id="name" name="name" maxlength="150" required value="{{ f.get('name', item.name) }}"></div>
+      <div class="col-md-3 mb-3"><label class="form-label" for="brand">Brand</label>
+        <input class="form-control" id="brand" name="brand" maxlength="80" value="{{ f.get('brand', item.brand) }}"></div>
+      <div class="col-md-3 mb-3"><label class="form-label" for="category">Category</label>
+        <select class="form-select" id="category" name="category">{% for c in categories %}<option {{ 'selected' if c == f.get('category', item.category) }}>{{ c }}</option>{% endfor %}</select></div>
+      <div class="col-md-4 mb-3"><label class="form-label" for="price">Reference price (R)</label>
+        <input class="form-control" id="price" name="price" inputmode="decimal" value="{{ f.get('price', item.price) }}">
+        <div class="form-text">Each chain’s price is worked out from this unless you set it below.</div></div>
+    </div>
+
+    <h2 class="h6 fw-bold mt-2">Stores (chains)</h2>
+    <p class="small text-muted-ink">Students see the product at the nearest branch of each chain that stocks it. Leave a price empty for the automatic price shown.</p>
+    <div class="table-responsive mb-3">
+      <table class="table align-middle mb-0">
+        <thead><tr><th scope="col">Chain</th><th scope="col">Stocks it</th><th scope="col">Price (R)</th><th scope="col">In stock</th></tr></thead>
+        <tbody>
+          {% for c in product.chains %}
+            {% set key = c.retailer|replace(' ', '_') %}
+            <tr>
+              <th scope="row" class="fw-600">{{ c.retailer }}{% if c.changed %} <span class="badge text-bg-info">Edited</span>{% endif %}</th>
+              <td><input class="form-check-input" type="checkbox" name="listed_{{ key }}" value="1" aria-label="{{ c.retailer }} stocks it" {{ 'checked' if (f.get('listed_' ~ key) == '1' if form else c.listed) }}></td>
+              <td style="max-width: 10rem"><input class="form-control form-control-sm" name="price_{{ key }}" inputmode="decimal" aria-label="{{ c.retailer }} price"
+                         placeholder="{{ c.auto_price }}" value="{{ f.get('price_' ~ key) if form else (c.price if c.price != c.auto_price else '') }}"></td>
+              <td><input class="form-check-input" type="checkbox" name="stock_{{ key }}" value="1" aria-label="{{ c.retailer }} has it in stock" {{ 'checked' if (f.get('stock_' ~ key) == '1' if form else c.in_stock) }}></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mb-3"><label class="form-label" for="pictures">Pictures (one https:// address per line)</label>
+      <textarea class="form-control" id="pictures" name="pictures" rows="3" placeholder="https://…/front.jpg">{{ f.get('pictures') if form else pictures|join('\n') }}</textarea>
+      <div class="form-text">More than one shows slide arrows to students.</div></div>
+
+    <div class="d-flex gap-2 justify-content-end">
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.builtin_products') }}">Cancel</a>
+      <button class="btn btn-brand" type="submit">Save changes</button>
+    </div>
+  </div></form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}
