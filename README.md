@@ -440,6 +440,12 @@ The app is a standard WSGI app: `gunicorn run:app`. In production (`APP_ENV=prod
 HSTS and a Content-Security-Policy, marks cookies `Secure`, serves `/static` itself with WhiteNoise, and trusts one
 proxy for `X-Forwarded-*`.
 
+**Render (easiest):** `render.yaml` sets up the web service (from the Dockerfile) and a PostgreSQL database. In the
+Render dashboard choose **New > Blueprint**, pick this repository and fill in `DEFAULT_ADMIN_EMAIL`,
+`DEFAULT_ADMIN_PASSWORD` (a new one: the default is public in this file) and `NOMINATIM_USER_AGENT`. On every start the
+container migrates the database, adds missing stores, loads `data/catalogue.json` into an empty catalogue (later
+starts only restore its picture files), adds the courses and creates the admin account.
+
 **Platforms with a Procfile (Heroku, Render, Railway):** set `APP_ENV=production`, `SECRET_KEY`, `DATABASE_URL` (a
 PostgreSQL add-on) and, for more than one worker, `REDIS_URL`. Run `flask --app run db upgrade` on each release, then
 `flask --app run seed-stores` once and `flask --app run make-admin you@example.com`.

@@ -155,3 +155,26 @@ def test_admin_backup_page_downloads_and_loads(client, make_user, login, uploads
     )
     assert "not an AI Smart Shopper catalogue" in bad.get_data(as_text=True)
     assert json.loads(exported)["files"]
+
+
+def test_startup_import_loads_once_then_only_restores_pictures(app, uploads, make_user, tmp_path):
+    build_catalogue(uploads, make_user)
+    path = tmp_path / "catalogue.json"
+    data_transfer.write_export(path)
+    wipe()
+    (uploads / "products" / "abc123.png").unlink()
+
+    first = data_transfer.startup_import(data_transfer.read_file(path))
+    db.session.commit()
+    assert first["mode"] == "full" and db.session.query(CatalogueProduct).count() == 1
+
+    # on the live site: an admin deletes the product and edits a price, then the server restarts (disk wiped)
+    db.session.delete(db.session.get(CatalogueProduct, "PRD-test1"))
+    db.session.get(MockProductOverride, "2000000000275").Price = D("55")
+    db.session.commit()
+    (uploads / "products" / "abc123.png").unlink()
+    again = data_transfer.startup_import(data_transfer.read_file(path))
+    db.session.commit()
+    assert again["mode"] == "files" and (uploads / "products" / "abc123.png").exists()  # picture back
+    assert db.session.query(CatalogueProduct).count() == 0  # the deletion was kept
+    assert db.session.get(MockProductOverride, "2000000000275").Price == D("55")  # and the edit

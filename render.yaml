@@ -1,0 +1,33 @@
+# Render Blueprint: one web service (the Dockerfile) + one PostgreSQL database.
+# Render dashboard > New > Blueprint > pick this repository. It asks for the values marked `sync: false`.
+services:
+  - type: web
+    name: ai-smart-shopper
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true          # a long random key, made once by Render
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-smart-shopper-db
+          property: connectionString
+      - key: DEFAULT_ADMIN_EMAIL
+        sync: false                  # e.g. siya1@gmail.com
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false                  # choose a NEW strong password: the default one is written in the README
+      - key: STUDENT_EMAIL_DOMAIN
+        value: dut4life.ac.za
+      - key: NOMINATIM_USER_AGENT
+        sync: false                  # e.g. AISmartShopper/1.0 (your-email@example.com)
+      - key: LOYALTYHUB_API_KEY
+        sync: false                  # optional: leave empty to use the built-in catalogue
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+databases:
+  - name: ai-smart-shopper-db
+    plan: free

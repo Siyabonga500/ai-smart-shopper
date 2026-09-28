@@ -225,7 +225,12 @@ def register_cli(app) -> None:
     @app.cli.command("import-catalogue")
     @click.argument("path", default="data/catalogue.json")
     @click.option("--if-present", is_flag=True, help="Do nothing (no error) when the file does not exist.")
-    def import_catalogue(path, if_present):
+    @click.option(
+        "--startup",
+        is_flag=True,
+        help="For server start-up: load everything only into an empty catalogue; otherwise only restore picture files.",
+    )
+    def import_catalogue(path, if_present, startup):
         """Load a file written by `flask export-catalogue` into this database. Safe to run again."""
         from app.services import data_transfer
         from app.services.retail_api import invalidate_retail_cache
@@ -234,9 +239,16 @@ def register_cli(app) -> None:
             click.echo(f"No {path}: nothing to import.")
             return
         try:
-            counts = data_transfer.import_data(data_transfer.read_file(path))
+            data = data_transfer.read_file(path)
+            counts = data_transfer.startup_import(data) if startup else data_transfer.import_data(data)
         except data_transfer.TransferError as exc:
             raise click.ClickException(str(exc)) from exc
+        if counts.get("mode") == "files":
+            db.session.commit()
+            click.echo(
+                f"Catalogue already set up: restored {counts['files']} picture file(s) only; the database was not changed."
+            )
+            return
         db.session.commit()
         invalidate_retail_cache()
         click.echo(

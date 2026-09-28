@@ -249,6 +249,35 @@ def _decimal(value):
     return None if value in (None, "") else Decimal(str(value))
 
 
+def has_catalogue_data() -> bool:
+    """Has an admin built anything in this database yet (products, pasted pictures or built-in edits)?"""
+    return any(
+        db.session.query(model).first() is not None
+        for model in (CatalogueProduct, ProductPicture, MockProductOverride, MockRetailerOverride)
+    )
+
+
+def startup_import(data: dict) -> dict:
+    """What a server does on every start (``flask import-catalogue --startup``).
+
+    First start (the database has no catalogue data yet): load everything. Later starts: only write the uploaded
+    picture files back (hosting with a temporary disk loses them on each restart), and never touch the database, so
+    edits and deletions made on the live site are kept.
+    """
+    if not has_catalogue_data():
+        return {**import_data(data), "mode": "full"}
+    names = _restore_files(data.get("files", {}))
+    return {
+        "stores": 0,
+        "products": 0,
+        "pictures": 0,
+        "builtin_edits": 0,
+        "courses": 0,
+        "files": len(names),
+        "mode": "files",
+    }
+
+
 def import_data(data: dict) -> dict:
     """Load an export into this database (the caller commits). Returns what was added or updated."""
     names = _restore_files(data.get("files", {}))
