@@ -4,6 +4,8 @@ flask seed-stores [--geocode] [--dry-run] [--file extra_stores.json]
 flask retail-search "full cream milk" [--lat --lng --radius --category]
 flask healthcheck          # JSON health report; exit code 1 when the database is down
 flask seed-demo [--reset]  # 3 demo students with budgets, lists and six months of history (development only)
+flask export-catalogue [data/catalogue.json]   # the admin's products, pictures, edits and courses, to commit
+flask import-catalogue [data/catalogue.json]   # load them on another computer (after `flask db upgrade`)
 flask seed-admin [--keep-password]  # the built-in admin account (DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD)
 """
 
@@ -200,6 +202,47 @@ def register_cli(app) -> None:
         added = add_missing_courses()
         db.session.commit()
         click.echo(f"Courses: {added} added.")
+
+    @app.cli.command("export-catalogue")
+    @click.argument("path", default="data/catalogue.json")
+    def export_catalogue(path):
+        """Write stores, products (with uploaded pictures), pasted pictures, built-in edits and courses to one JSON
+        file you can commit. Student accounts and passwords are never included."""
+        from app.services import data_transfer
+
+        counts = data_transfer.write_export(path)
+        click.echo(
+            f"Wrote {path}: {counts['stores']} stores, {counts['products']} products, {counts['pictures']} pasted "
+            f"pictures, {counts['files']} uploaded picture files, {counts['builtin_edits']} built-in edits, "
+            f"{counts['courses']} courses."
+        )
+        if counts["missing_files"]:
+            click.echo(
+                f"Warning: {counts['missing_files']} uploaded picture(s) were not found on disk and are not in the file."
+            )
+        click.echo("Commit it (git add data/catalogue.json) and run `flask import-catalogue` on the other computer.")
+
+    @app.cli.command("import-catalogue")
+    @click.argument("path", default="data/catalogue.json")
+    @click.option("--if-present", is_flag=True, help="Do nothing (no error) when the file does not exist.")
+    def import_catalogue(path, if_present):
+        """Load a file written by `flask export-catalogue` into this database. Safe to run again."""
+        from app.services import data_transfer
+        from app.services.retail_api import invalidate_retail_cache
+
+        if if_present and not Path(path).exists():
+            click.echo(f"No {path}: nothing to import.")
+            return
+        try:
+            counts = data_transfer.import_data(data_transfer.read_file(path))
+        except data_transfer.TransferError as exc:
+            raise click.ClickException(str(exc)) from exc
+        db.session.commit()
+        invalidate_retail_cache()
+        click.echo(
+            f"Imported {path}: {counts['stores']} stores, {counts['products']} products, {counts['pictures']} pasted "
+            f"pictures, {counts['files']} picture files, {counts['builtin_edits']} built-in edits, {counts['courses']} courses."
+        )
 
     @app.cli.command("healthcheck")
     def healthcheck():

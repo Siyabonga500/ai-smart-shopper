@@ -3,6 +3,7 @@
 set -e
 flask --app run db upgrade
 flask --app run seed-stores --missing-only   # the Durban supermarket and clothing branches
+flask --app run import-catalogue --if-present   # products, pictures and edits committed in data/catalogue.json
 flask --app run seed-courses                 # the three money courses and their quizzes
 flask --app run seed-admin --keep-password   # the built-in admin account (DEFAULT_ADMIN_EMAIL)
 exec gunicorn run:app \

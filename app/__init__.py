@@ -90,6 +90,8 @@ def _init_extensions(app: Flask) -> None:
         # Registered before CSRFProtect so the bigger limit is in place before the form is first read.
         if request.path.startswith("/admin/products"):
             request.max_content_length = app.config["ADMIN_PRODUCT_MAX_CONTENT_LENGTH"]
+        elif request.path.startswith("/admin/backup"):
+            request.max_content_length = app.config["BACKUP_MAX_CONTENT_LENGTH"]
 
     csrf.init_app(app)
 

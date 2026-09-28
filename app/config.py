@@ -105,6 +105,8 @@ class BaseConfig:
     # Admin > Products: clothing can have several photos, each up to MAX_UPLOAD_BYTES, in one request.
     MAX_PRODUCT_PHOTOS = 6
     ADMIN_PRODUCT_MAX_CONTENT_LENGTH = MAX_PRODUCT_PHOTOS * MAX_UPLOAD_BYTES + 512 * 1024
+    # Admin > Backup: the catalogue file carries every uploaded product picture.
+    BACKUP_MAX_CONTENT_LENGTH = _env_int("BACKUP_MAX_CONTENT_LENGTH", 100 * 1024 * 1024)
 
     # --- Passwords / identity ------------------------------------------------
     BCRYPT_LOG_ROUNDS = _env_int("BCRYPT_LOG_ROUNDS", 12)

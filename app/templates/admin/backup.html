@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% block title %}Backup - Admin - {{ app_name }}{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-1">Backup: move your catalogue to another computer</h1>
+  <p class="small text-muted-ink mb-3">The database and uploaded pictures are not stored in GitHub (they hold student accounts and passwords). This file carries what you built instead: stores, your products with their uploaded pictures, pasted pictures, built-in product edits and the courses. Student accounts, passwords, budgets and lists are never included.</p>
+
+  <div class="row g-3">
+    <div class="col-md-6"><div class="card app-card h-100"><div class="card-body">
+      <h2 class="h6 fw-bold"><i class="bi bi-download me-1"></i>1. Download from this computer</h2>
+      <ul class="small mb-3">
+        <li>{{ counts.stores }} stores · {{ counts.products }} of your products</li>
+        <li>{{ counts.files }} uploaded picture files · {{ counts.pictures }} pasted pictures</li>
+        <li>{{ counts.builtin_edits }} built-in product edits · {{ counts.courses }} courses</li>
+        {% if counts.missing_files %}<li class="text-danger">{{ counts.missing_files }} uploaded picture(s) are missing on disk and cannot be included.</li>{% endif %}
+      </ul>
+      <a class="btn btn-brand" href="{{ url_for('admin.backup', download=1) }}"><i class="bi bi-download me-1"></i>Download catalogue.json</a>
+      <p class="small text-muted-ink mt-3 mb-0">To keep it in GitHub, save it as <code>data/catalogue.json</code> in the project and commit it (or run <code>flask --app run export-catalogue</code>).</p>
+    </div></div></div>
+    <div class="col-md-6"><div class="card app-card h-100"><div class="card-body">
+      <h2 class="h6 fw-bold"><i class="bi bi-upload me-1"></i>2. Load on the other computer</h2>
+      <form method="post" enctype="multipart/form-data" data-confirm="Load this file? Products, pictures and edits in it are added or updated here.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-label small" for="file">catalogue.json</label>
+        <input class="form-control mb-2" type="file" id="file" name="file" accept=".json,application/json">
+        <button class="btn btn-outline-brand" type="submit"><i class="bi bi-upload me-1"></i>Load file</button>
+      </form>
+      <p class="small text-muted-ink mt-3 mb-0">Or after cloning, run <code>flask --app run import-catalogue</code> (it reads <code>data/catalogue.json</code>). Loading twice is safe: nothing is duplicated.</p>
+    </div></div></div>
+  </div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

@@ -19,6 +19,8 @@
     GET   /admin/catalogue                     ?q=&category=&status=&page=   the built-in (mock) products
     GET/POST /admin/catalogue/<barcode>        edit one: name, brand, category, price, each chain's price / stock
     POST  /admin/catalogue/<barcode>/delete | /restore | /reset
+    GET   /admin/backup                        download the catalogue export (products, pictures, edits, courses)
+    POST  /admin/backup                        upload one to load it (same as `flask import-catalogue`)
     GET   /admin/pictures                      ?q=&page=   paste picture URLs for the built-in products (by barcode)
     POST  /admin/pictures                      barcode + URLs, one per line (an empty list removes them)
     GET   /admin/courses                       the short courses: questions, attempts, pass rate
@@ -853,6 +855,49 @@ def builtin_reset(barcode):
         lambda: builtin.reset(barcode),
         "Your changes were undone: the built-in values are back.",
     )
+
+
+# ---------------------------------------------------------------------------------------------- backup
+@bp.route("/backup", methods=["GET", "POST"])
+def backup():
+    import json
+
+    from app.services import data_transfer
+    from app.services.retail_api import invalidate_retail_cache
+
+    if request.method == "POST":
+        upload = request.files.get("file")
+        if upload is None or not upload.filename:
+            _fail("Choose the catalogue file (catalogue.json) first.")
+            return redirect(url_for("admin.backup"))
+        try:
+            data = json.loads(upload.stream.read().decode("utf-8"))
+            if not isinstance(data, dict) or data.get("format") != "ai-smart-shopper-catalogue":
+                raise data_transfer.TransferError("That file is not an AI Smart Shopper catalogue export.")
+            counts = data_transfer.import_data(data)
+        except (ValueError, UnicodeDecodeError, data_transfer.TransferError) as exc:
+            db.session.rollback()
+            _fail(str(exc) if isinstance(exc, data_transfer.TransferError) else "That file could not be read.")
+            return redirect(url_for("admin.backup"))
+        audit.record(me(), "backup.import", "catalogue", counts)
+        db.session.commit()
+        invalidate_retail_cache()
+        _done(
+            f"Loaded {counts['products']} products, {counts['pictures']} pasted pictures, {counts['files']} picture files, "
+            f"{counts['builtin_edits']} built-in edits and {counts['courses']} courses."
+        )
+        return redirect(url_for("admin.backup"))
+
+    if request.args.get("download"):
+        data = data_transfer.export_data()
+        audit.record(me(), "backup.export", "catalogue", data_transfer.summary(data))
+        db.session.commit()
+        response = current_app.response_class(
+            json.dumps(data, indent=1, ensure_ascii=False, default=str), mimetype="application/json"
+        )
+        response.headers["Content-Disposition"] = "attachment; filename=catalogue.json"
+        return response
+    return render_template("admin/backup.html", counts=data_transfer.summary(data_transfer.export_data()))
 
 
 # -------------------------------------------------------------------------------------------- pictures

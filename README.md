@@ -107,6 +107,25 @@ To give another student the admin role from the command line:
 flask --app run make-admin you@example.com      # add --remove to take it away again
 ```
 
+## Moving your products and pictures to another computer
+
+The database (`dev.db`) and uploaded pictures (`app/static/uploads/`) are **not** stored in Git: they hold student
+accounts and passwords. So a fresh clone starts without the products, pictures and edits an admin made. Carry them
+over with one file that *is* committed:
+
+```bash
+# on the computer that has the data
+flask --app run export-catalogue        # writes data/catalogue.json (uploaded pictures included)
+git add data/catalogue.json && git commit -m "Catalogue data" && git push
+
+# on the other computer, after cloning and `flask --app run db upgrade`
+flask --app run import-catalogue        # reads data/catalogue.json; safe to run again
+```
+
+It carries stores, products added in Admin > Products (with their uploaded pictures), pasted pictures, built-in
+product edits and the courses. Never students, passwords, budgets, lists or API keys. **Admin > Backup** does the
+same from the browser (download / upload). The Docker entrypoint imports `data/catalogue.json` when it exists.
+
 ## Demo data
 
 `flask seed-demo` creates three students, each with a budget, a shopping list and six months of finished trips.
