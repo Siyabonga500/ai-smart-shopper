@@ -423,3 +423,11 @@ Captured from the demo data (`flask seed-demo`). Regenerate them after a visual 
 - The mock catalogue is sample data, not real shelf prices, and shows category pictures instead of product photos.
 - Students are never sent to a retailer's website: there is no "Retailer page" button, and no API response, list item
   or page carries a retailer address (product photos are the only web addresses the app loads).
+
+
+# 👨‍💻 Developer
+
+**Group 12**
+**SODM401: SOFTWARE DEVELOPMENT AND MANAGEMENT**
+
+AI SmartShopper © 2026
